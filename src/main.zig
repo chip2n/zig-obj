@@ -10,10 +10,12 @@ const expectError = std.testing.expectError;
 const ObjData = struct {
     vertices: []const Vector4,
     tex_coords: []const Vector3,
+    normals: []const Vector3,
 
     fn eq(self: ObjData, other: ObjData) bool {
         if (self.vertices.len != other.vertices.len) return false;
         if (self.tex_coords.len != other.tex_coords.len) return false;
+        if (self.normals.len != other.normals.len) return false;
 
         for (self.vertices) |vertex, i| {
             if (!vertex.eq(other.vertices[i])) return false;
@@ -23,12 +25,17 @@ const ObjData = struct {
             if (!coord.eq(other.tex_coords[i])) return false;
         }
 
+        for (self.normals) |normal, i| {
+            if (!normal.eq(other.normals[i])) return false;
+        }
+
         return true;
     }
 
     fn deinit(self: ObjData, allocator: *Allocator) void {
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
+        allocator.free(self.normals);
     }
 };
 
@@ -64,7 +71,8 @@ const Face = struct {
 
 const DefType = enum {
     Vertex,
-    TexCoords,
+    TexCoord,
+    Normal,
 };
 
 fn parse(allocator: *Allocator, data: []const u8) !ObjData {
@@ -73,6 +81,9 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
 
     var tex_coords = ArrayList(Vector3).init(allocator);
     errdefer tex_coords.deinit();
+
+    var normals = ArrayList(Vector3).init(allocator);
+    errdefer normals.deinit();
 
     var lines = tokenize(data, "\n");
     while (lines.next()) |line| {
@@ -87,12 +98,19 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
 
                 try vertices.append(Vector4{ .x = x, .y = y, .z = z, .w = w });
             },
-            DefType.TexCoords => {
+            DefType.TexCoord => {
                 const u = try std.fmt.parseFloat(f32, iter.next().?);
                 const v = try std.fmt.parseFloat(f32, iter.next().?);
                 const w = if (iter.next()) |n| try std.fmt.parseFloat(f32, n) else 0.0;
 
                 try tex_coords.append(Vector3{ .x = u, .y = v, .z = w });
+            },
+            DefType.Normal => {
+                const x = try std.fmt.parseFloat(f32, iter.next().?);
+                const y = try std.fmt.parseFloat(f32, iter.next().?);
+                const z = try std.fmt.parseFloat(f32, iter.next().?);
+
+                try normals.append(Vector3{ .x = x, .y = y, .z = z });
             },
         }
     }
@@ -100,6 +118,7 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     return ObjData{
         .vertices = vertices.toOwnedSlice(),
         .tex_coords = tex_coords.toOwnedSlice(),
+        .normals = normals.toOwnedSlice(),
     };
 }
 
@@ -107,7 +126,9 @@ fn parse_type(t: []const u8) !DefType {
     if (std.mem.eql(u8, t, "v")) {
         return DefType.Vertex;
     } else if (std.mem.eql(u8, t, "vt")) {
-        return DefType.TexCoords;
+        return DefType.TexCoord;
+    } else if (std.mem.eql(u8, t, "vn")) {
+        return DefType.Normal;
     } else {
         return error.UnknownDefType;
     }
@@ -123,6 +144,7 @@ fn test_field(comptime field: []const u8, data: []const u8, value: anytype) !voi
     var expected = ObjData{
         .vertices = &[_]Vector4{},
         .tex_coords = &[_]Vector3{},
+        .normals = &[_]Vector3{},
     };
     @field(expected, field) = &[_]@TypeOf(value){value};
 
@@ -148,4 +170,8 @@ test "tex coord def uv" {
 
 test "tex coord def uvw" {
     try test_field("tex_coords", "vt 0.123 0.234 0.345", Vector3{ .x = 0.123, .y = 0.234, .z = 0.345 });
+}
+
+test "normal def xyz" {
+    try test_field("normals", "vn 0.123 0.234 0.345", Vector3{ .x = 0.123, .y = 0.234, .z = 0.345 });
 }
