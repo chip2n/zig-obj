@@ -70,6 +70,7 @@ const Face = struct {
 };
 
 const DefType = enum {
+    Comment,
     Vertex,
     TexCoord,
     Normal,
@@ -90,6 +91,9 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
         var iter = tokenize(line, " ");
         const def_type = try parse_type(iter.next().?);
         switch (def_type) {
+            DefType.Comment => {
+                // ignore
+            },
             DefType.Vertex => {
                 const x = try std.fmt.parseFloat(f32, iter.next().?);
                 const y = try std.fmt.parseFloat(f32, iter.next().?);
@@ -123,7 +127,9 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
 }
 
 fn parse_type(t: []const u8) !DefType {
-    if (std.mem.eql(u8, t, "v")) {
+    if (std.mem.eql(u8, t, "#")) {
+        return DefType.Comment;
+    } else if (std.mem.eql(u8, t, "v")) {
         return DefType.Vertex;
     } else if (std.mem.eql(u8, t, "vt")) {
         return DefType.TexCoord;
@@ -154,6 +160,14 @@ fn test_field(comptime field: []const u8, data: []const u8, value: anytype) !voi
 test "unknown def" {
     const allocator = std.testing.allocator;
     expectError(error.UnknownDefType, parse(allocator, "invalid 0 1 2"));
+}
+
+test "comment" {
+    const allocator = std.testing.allocator;
+    const result = try parse(allocator, "# this is a comment");
+    expect(result.vertices.len == 0);
+    expect(result.tex_coords.len == 0);
+    expect(result.normals.len == 0);
 }
 
 test "vertex def xyz" {
