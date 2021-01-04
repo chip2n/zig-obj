@@ -8,8 +8,8 @@ const expect = std.testing.expect;
 const expectError = std.testing.expectError;
 
 const ObjData = struct {
-    vertices: []const Vertex,
-    tex_coords: []const TexCoord,
+    vertices: []const Vector4,
+    tex_coords: []const Vector3,
 
     fn eq(self: ObjData, other: ObjData) bool {
         if (self.vertices.len != other.vertices.len) return false;
@@ -32,13 +32,25 @@ const ObjData = struct {
     }
 };
 
-const Vertex = struct {
+const Vector3 = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+
+    fn eq(self: Vector3, other: Vector3) bool {
+        return self.x == other.x and
+            self.y == other.y and
+            self.z == other.z;
+    }
+};
+
+const Vector4 = struct {
     x: f32,
     y: f32,
     z: f32,
     w: f32,
 
-    fn eq(self: Vertex, other: Vertex) bool {
+    fn eq(self: Vector4, other: Vector4) bool {
         return self.x == other.x and
             self.y == other.y and
             self.z == other.z and
@@ -46,19 +58,6 @@ const Vertex = struct {
     }
 };
 
-const TexCoord = struct {
-    u: f32,
-    v: f32,
-    w: f32,
-
-    fn eq(self: TexCoord, other: TexCoord) bool {
-        return self.u == other.u and
-            self.v == other.v and
-            self.w == other.w;
-    }
-};
-
-const Normal = struct { x: f32, y: f32, z: f32 };
 const Face = struct {
     vertex_indices: []usize,
 };
@@ -69,10 +68,10 @@ const DefType = enum {
 };
 
 fn parse(allocator: *Allocator, data: []const u8) !ObjData {
-    var vertices = ArrayList(Vertex).init(allocator);
+    var vertices = ArrayList(Vector4).init(allocator);
     errdefer vertices.deinit();
 
-    var tex_coords = ArrayList(TexCoord).init(allocator);
+    var tex_coords = ArrayList(Vector3).init(allocator);
     errdefer tex_coords.deinit();
 
     var lines = tokenize(data, "\n");
@@ -86,14 +85,14 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
                 const z = try std.fmt.parseFloat(f32, iter.next().?);
                 const w = if (iter.next()) |n| try std.fmt.parseFloat(f32, n) else 1.0;
 
-                try vertices.append(Vertex{ .x = x, .y = y, .z = z, .w = w });
+                try vertices.append(Vector4{ .x = x, .y = y, .z = z, .w = w });
             },
             DefType.TexCoords => {
                 const u = try std.fmt.parseFloat(f32, iter.next().?);
                 const v = try std.fmt.parseFloat(f32, iter.next().?);
                 const w = if (iter.next()) |n| try std.fmt.parseFloat(f32, n) else 0.0;
 
-                try tex_coords.append(TexCoord{ .u = u, .v = v, .w = w });
+                try tex_coords.append(Vector3{ .x = u, .y = v, .z = w });
             },
         }
     }
@@ -122,8 +121,8 @@ fn test_field(comptime field: []const u8, data: []const u8, value: anytype) !voi
     defer result.deinit(allocator);
 
     var expected = ObjData{
-        .vertices = &[_]Vertex{},
-        .tex_coords = &[_]TexCoord{},
+        .vertices = &[_]Vector4{},
+        .tex_coords = &[_]Vector3{},
     };
     @field(expected, field) = &[_]@TypeOf(value){value};
 
@@ -136,17 +135,17 @@ test "unknown def" {
 }
 
 test "vertex def xyz" {
-    try test_field("vertices", "v 0.123 0.234 0.345", Vertex{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 1.0 });
+    try test_field("vertices", "v 0.123 0.234 0.345", Vector4{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 1.0 });
 }
 
 test "vertex def xyzw" {
-    try test_field("vertices", "v 0.123 0.234 0.345 0.456", Vertex{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 0.456 });
+    try test_field("vertices", "v 0.123 0.234 0.345 0.456", Vector4{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 0.456 });
 }
 
 test "tex coord def uv" {
-    try test_field("tex_coords", "vt 0.123 0.234", TexCoord{ .u = 0.123, .v = 0.234, .w = 0.0 });
+    try test_field("tex_coords", "vt 0.123 0.234", Vector3{ .x = 0.123, .y = 0.234, .z = 0.0 });
 }
 
 test "tex coord def uvw" {
-    try test_field("tex_coords", "vt 0.123 0.234 0.345", TexCoord{ .u = 0.123, .v = 0.234, .w = 0.345 });
+    try test_field("tex_coords", "vt 0.123 0.234 0.345", Vector3{ .x = 0.123, .y = 0.234, .z = 0.345 });
 }
