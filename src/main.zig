@@ -3,32 +3,23 @@ const tokenize = std.mem.tokenize;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
+const parseFloat = std.fmt.parseFloat;
+const parseUnsigned = std.fmt.parseUnsigned;
 
 const expect = std.testing.expect;
 const expectError = std.testing.expectError;
 
 const ObjData = struct {
-    vertices: []const Vector4,
-    tex_coords: []const Vector3,
-    normals: []const Vector3,
+    vertices: []const f32,
+    tex_coords: []const f32,
+    normals: []const f32,
+
+    meshes: []const Mesh,
 
     fn eq(self: ObjData, other: ObjData) bool {
-        if (self.vertices.len != other.vertices.len) return false;
-        if (self.tex_coords.len != other.tex_coords.len) return false;
-        if (self.normals.len != other.normals.len) return false;
-
-        for (self.vertices) |vertex, i| {
-            if (!vertex.eq(other.vertices[i])) return false;
-        }
-
-        for (self.tex_coords) |coord, i| {
-            if (!coord.eq(other.tex_coords[i])) return false;
-        }
-
-        for (self.normals) |normal, i| {
-            if (!normal.eq(other.normals[i])) return false;
-        }
-
+        if (!std.mem.eql(f32, self.vertices, other.vertices)) return false;
+        if (!std.mem.eql(f32, self.tex_coords, other.tex_coords)) return false;
+        if (!std.mem.eql(f32, self.normals, other.normals)) return false;
         return true;
     }
 
@@ -36,37 +27,26 @@ const ObjData = struct {
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
         allocator.free(self.normals);
+
+        for (self.meshes) |mesh| mesh.deinit(allocator);
+        allocator.free(self.meshes);
     }
 };
 
-const Vector3 = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-
-    fn eq(self: Vector3, other: Vector3) bool {
-        return self.x == other.x and
-            self.y == other.y and
-            self.z == other.z;
-    }
+const Index = struct {
+    vertex: ?u32,
+    tex_coord: ?u32,
+    normal: ?u32,
 };
 
-const Vector4 = struct {
-    x: f32,
-    y: f32,
-    z: f32,
-    w: f32,
+const Mesh = struct {
+    num_vertices: []const u32,
+    indices: []const Index,
 
-    fn eq(self: Vector4, other: Vector4) bool {
-        return self.x == other.x and
-            self.y == other.y and
-            self.z == other.z and
-            self.w == other.w;
+    fn deinit(self: Mesh, allocator: *Allocator) void {
+        allocator.free(self.num_vertices);
+        allocator.free(self.indices);
     }
-};
-
-const Face = struct {
-    vertex_indices: []usize,
 };
 
 const DefType = enum {
@@ -74,17 +54,27 @@ const DefType = enum {
     Vertex,
     TexCoord,
     Normal,
+    Face,
 };
 
 fn parse(allocator: *Allocator, data: []const u8) !ObjData {
-    var vertices = ArrayList(Vector4).init(allocator);
+    var vertices = ArrayList(f32).init(allocator);
     errdefer vertices.deinit();
 
-    var tex_coords = ArrayList(Vector3).init(allocator);
+    var tex_coords = ArrayList(f32).init(allocator);
     errdefer tex_coords.deinit();
 
-    var normals = ArrayList(Vector3).init(allocator);
+    var normals = ArrayList(f32).init(allocator);
     errdefer normals.deinit();
+
+    var meshes = ArrayList(Mesh).init(allocator);
+    errdefer meshes.deinit();
+
+    // current mesh
+    var num_verts = ArrayList(u32).init(allocator);
+    errdefer num_verts.deinit();
+    var indices = ArrayList(Index).init(allocator);
+    errdefer indices.deinit();
 
     var lines = tokenize(data, "\n");
     while (lines.next()) |line| {
@@ -95,34 +85,49 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
                 // ignore
             },
             DefType.Vertex => {
-                const x = try std.fmt.parseFloat(f32, iter.next().?);
-                const y = try std.fmt.parseFloat(f32, iter.next().?);
-                const z = try std.fmt.parseFloat(f32, iter.next().?);
-                const w = if (iter.next()) |n| try std.fmt.parseFloat(f32, n) else 1.0;
-
-                try vertices.append(Vector4{ .x = x, .y = y, .z = z, .w = w });
+                try vertices.append(try parseFloat(f32, iter.next().?));
+                try vertices.append(try parseFloat(f32, iter.next().?));
+                try vertices.append(try parseFloat(f32, iter.next().?));
             },
             DefType.TexCoord => {
-                const u = try std.fmt.parseFloat(f32, iter.next().?);
-                const v = try std.fmt.parseFloat(f32, iter.next().?);
-                const w = if (iter.next()) |n| try std.fmt.parseFloat(f32, n) else 0.0;
-
-                try tex_coords.append(Vector3{ .x = u, .y = v, .z = w });
+                try tex_coords.append(try parseFloat(f32, iter.next().?));
+                try tex_coords.append(try parseFloat(f32, iter.next().?));
             },
             DefType.Normal => {
-                const x = try std.fmt.parseFloat(f32, iter.next().?);
-                const y = try std.fmt.parseFloat(f32, iter.next().?);
-                const z = try std.fmt.parseFloat(f32, iter.next().?);
+                try normals.append(try parseFloat(f32, iter.next().?));
+                try normals.append(try parseFloat(f32, iter.next().?));
+                try normals.append(try parseFloat(f32, iter.next().?));
+            },
+            DefType.Face => {
+                var i: u32 = 0;
+                while (iter.next()) |entry| {
+                    var entry_iter = tokenize(entry, "/");
+                    // TODO support x//y and similar
+                    // NOTE obj is one-indexed - let's make it zero-indexed
+                    try indices.append(Index{
+                        .vertex = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
+                        .tex_coord = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
+                        .normal = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
+                    });
 
-                try normals.append(Vector3{ .x = x, .y = y, .z = z });
+                    i += 1;
+                }
+                try num_verts.append(i);
             },
         }
     }
+
+    // TODO support multiple meshes
+    try meshes.append(Mesh{
+        .num_vertices = num_verts.toOwnedSlice(),
+        .indices = indices.toOwnedSlice(),
+    });
 
     return ObjData{
         .vertices = vertices.toOwnedSlice(),
         .tex_coords = tex_coords.toOwnedSlice(),
         .normals = normals.toOwnedSlice(),
+        .meshes = meshes.toOwnedSlice(),
     };
 }
 
@@ -135,6 +140,8 @@ fn parse_type(t: []const u8) !DefType {
         return DefType.TexCoord;
     } else if (std.mem.eql(u8, t, "vn")) {
         return DefType.Normal;
+    } else if (std.mem.eql(u8, t, "f")) {
+        return DefType.Face;
     } else {
         return error.UnknownDefType;
     }
@@ -142,17 +149,18 @@ fn parse_type(t: []const u8) !DefType {
 
 // ------------------------------------------------------------------------------
 
-fn test_field(comptime field: []const u8, data: []const u8, value: anytype) !void {
+fn test_single_field(comptime field: []const u8, data: []const u8, value: anytype) !void {
     const allocator = std.testing.allocator;
     var result = try parse(allocator, data);
     defer result.deinit(allocator);
 
     var expected = ObjData{
-        .vertices = &[_]Vector4{},
-        .tex_coords = &[_]Vector3{},
-        .normals = &[_]Vector3{},
+        .vertices = &[_]f32{},
+        .tex_coords = &[_]f32{},
+        .normals = &[_]f32{},
+        .meshes = &[_]Mesh{},
     };
-    @field(expected, field) = &[_]@TypeOf(value){value};
+    @field(expected, field) = value;
 
     expect(expected.eq(result));
 }
@@ -165,27 +173,41 @@ test "unknown def" {
 test "comment" {
     const allocator = std.testing.allocator;
     const result = try parse(allocator, "# this is a comment");
+    defer result.deinit(allocator);
     expect(result.vertices.len == 0);
     expect(result.tex_coords.len == 0);
     expect(result.normals.len == 0);
 }
 
 test "vertex def xyz" {
-    try test_field("vertices", "v 0.123 0.234 0.345", Vector4{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 1.0 });
+    try test_single_field("vertices", "v 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234, 0.345 });
 }
 
 test "vertex def xyzw" {
-    try test_field("vertices", "v 0.123 0.234 0.345 0.456", Vector4{ .x = 0.123, .y = 0.234, .z = 0.345, .w = 0.456 });
+    try test_single_field("vertices", "v 0.123 0.234 0.345 0.456", &[_]f32{ 0.123, 0.234, 0.345 });
 }
 
 test "tex coord def uv" {
-    try test_field("tex_coords", "vt 0.123 0.234", Vector3{ .x = 0.123, .y = 0.234, .z = 0.0 });
+    try test_single_field("tex_coords", "vt 0.123 0.234", &[_]f32{ 0.123, 0.234 });
 }
 
 test "tex coord def uvw" {
-    try test_field("tex_coords", "vt 0.123 0.234 0.345", Vector3{ .x = 0.123, .y = 0.234, .z = 0.345 });
+    try test_single_field("tex_coords", "vt 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234 });
 }
 
 test "normal def xyz" {
-    try test_field("normals", "vn 0.123 0.234 0.345", Vector3{ .x = 0.123, .y = 0.234, .z = 0.345 });
+    try test_single_field("normals", "vn 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234, 0.345 });
+}
+
+test "face def vertex only" {
+    try test_single_field("meshes", "f 1 2 3", &[_]Mesh{
+        Mesh{
+            .num_vertices = &[_]u32{3},
+            .indices = &[_]Index{
+                Index{ .vertex = 0, .tex_coord = null, .normal = null },
+                Index{ .vertex = 1, .tex_coord = null, .normal = null },
+                Index{ .vertex = 2, .tex_coord = null, .normal = null },
+            },
+        },
+    });
 }
