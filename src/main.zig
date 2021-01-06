@@ -364,4 +364,83 @@ test "triangle obj exported from blender" {
     expect(result.meshes.len == 1);
     expect(result.meshes[0].eq(mesh));
 }
+
+test "cube obj exported from blender" {
+    const data = @embedFile("../cube.obj");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.vertices, &[_]f32{
+        1.0,  1.0,  -1.0,
+        1.0,  -1.0, -1.0,
+        1.0,  1.0,  1.0,
+        1.0,  -1.0, 1.0,
+        -1.0, 1.0,  -1.0,
+        -1.0, -1.0, -1.0,
+        -1.0, 1.0,  1.0,
+        -1.0, -1.0, 1.0,
+    }));
+    expect(std.mem.eql(f32, result.tex_coords, &[_]f32{
+        0.625, 0.500,
+        0.875, 0.500,
+        0.875, 0.750,
+        0.625, 0.750,
+        0.375, 0.750,
+        0.625, 1.000,
+        0.375, 1.000,
+        0.375, 0.000,
+        0.625, 0.000,
+        0.625, 0.250,
+        0.375, 0.250,
+        0.125, 0.500,
+        0.375, 0.500,
+        0.125, 0.750,
+    }));
+    expect(std.mem.eql(f32, result.normals, &[_]f32{
+        0.0,  1.0,  0.0,
+        0.0,  0.0,  1.0,
+        -1.0, 0.0,  0.0,
+        0.0,  -1.0, 0.0,
+        1.0,  0.0,  0.0,
+        0.0,  0.0,  -1.0,
+    }));
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{ 4, 4, 4, 4, 4, 4 },
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+            Index{ .vertex = 4, .tex_coord = 1, .normal = 0 },
+            Index{ .vertex = 6, .tex_coord = 2, .normal = 0 },
+            Index{ .vertex = 2, .tex_coord = 3, .normal = 0 },
+
+            Index{ .vertex = 3, .tex_coord = 4, .normal = 1 },
+            Index{ .vertex = 2, .tex_coord = 3, .normal = 1 },
+            Index{ .vertex = 6, .tex_coord = 5, .normal = 1 },
+            Index{ .vertex = 7, .tex_coord = 6, .normal = 1 },
+
+            Index{ .vertex = 7, .tex_coord = 7, .normal = 2 },
+            Index{ .vertex = 6, .tex_coord = 8, .normal = 2 },
+            Index{ .vertex = 4, .tex_coord = 9, .normal = 2 },
+            Index{ .vertex = 5, .tex_coord = 10, .normal = 2 },
+
+            Index{ .vertex = 5, .tex_coord = 11, .normal = 3 },
+            Index{ .vertex = 1, .tex_coord = 12, .normal = 3 },
+            Index{ .vertex = 3, .tex_coord = 4, .normal = 3 },
+            Index{ .vertex = 7, .tex_coord = 13, .normal = 3 },
+
+            Index{ .vertex = 1, .tex_coord = 12, .normal = 4 },
+            Index{ .vertex = 0, .tex_coord = 0, .normal = 4 },
+            Index{ .vertex = 2, .tex_coord = 3, .normal = 4 },
+            Index{ .vertex = 3, .tex_coord = 4, .normal = 4 },
+
+            Index{ .vertex = 5, .tex_coord = 10, .normal = 5 },
+            Index{ .vertex = 4, .tex_coord = 9, .normal = 5 },
+            Index{ .vertex = 0, .tex_coord = 0, .normal = 5 },
+            Index{ .vertex = 1, .tex_coord = 12, .normal = 5 },
+        },
+    };
+
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
 }
