@@ -1,5 +1,6 @@
 const std = @import("std");
 const tokenize = std.mem.tokenize;
+const split = std.mem.split;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
@@ -20,6 +21,11 @@ const ObjData = struct {
         if (!std.mem.eql(f32, self.vertices, other.vertices)) return false;
         if (!std.mem.eql(f32, self.tex_coords, other.tex_coords)) return false;
         if (!std.mem.eql(f32, self.normals, other.normals)) return false;
+
+        if (self.meshes.len != other.meshes.len) return false;
+        for (self.meshes) |mesh, i| {
+            if (!mesh.eq(other.meshes[i])) return false;
+        }
         return true;
     }
 
@@ -37,7 +43,21 @@ const Index = struct {
     vertex: ?u32,
     tex_coord: ?u32,
     normal: ?u32,
+
+    fn eq(self: Index, other: Index) bool {
+        return compareOpt(self.vertex, other.vertex) and
+            compareOpt(self.tex_coord, other.tex_coord) and
+            compareOpt(self.normal, other.normal);
+    }
 };
+
+fn compareOpt(a: ?u32, b: ?u32) bool {
+    if (a != null and b != null) {
+        return a.? == b.?;
+    }
+
+    return a == null and b == null;
+}
 
 const Mesh = struct {
     num_vertices: []const u32,
@@ -47,6 +67,15 @@ const Mesh = struct {
         allocator.free(self.num_vertices);
         allocator.free(self.indices);
     }
+
+    fn eq(self: Mesh, other: Mesh) bool {
+        if (self.indices.len != other.indices.len) return false;
+        if (!std.mem.eql(u32, self.num_vertices, other.num_vertices)) return false;
+        for (self.indices) |index, i| {
+            if (!index.eq(other.indices[i])) return false;
+        }
+        return true;
+    }
 };
 
 const DefType = enum {
@@ -55,6 +84,10 @@ const DefType = enum {
     TexCoord,
     Normal,
     Face,
+    Object,
+    MaterialLib,
+    UseMaterial,
+    Smoothing,
 };
 
 fn parse(allocator: *Allocator, data: []const u8) !ObjData {
@@ -79,11 +112,8 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     var lines = tokenize(data, "\n");
     while (lines.next()) |line| {
         var iter = tokenize(line, " ");
-        const def_type = try parse_type(iter.next().?);
+        const def_type = try parseType(iter.next().?);
         switch (def_type) {
-            DefType.Comment => {
-                // ignore
-            },
             DefType.Vertex => {
                 try vertices.append(try parseFloat(f32, iter.next().?));
                 try vertices.append(try parseFloat(f32, iter.next().?));
@@ -101,27 +131,46 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
             DefType.Face => {
                 var i: u32 = 0;
                 while (iter.next()) |entry| {
-                    var entry_iter = tokenize(entry, "/");
+                    var entry_iter = split(entry, "/");
                     // TODO support x//y and similar
                     // NOTE obj is one-indexed - let's make it zero-indexed
                     try indices.append(Index{
-                        .vertex = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
-                        .tex_coord = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
-                        .normal = if (entry_iter.next()) |e| (try parseUnsigned(u32, e, 10)) - 1 else null,
+                        .vertex = if (entry_iter.next()) |e| (try parseOptionalIndex(e)) else null,
+                        .tex_coord = if (entry_iter.next()) |e| (try parseOptionalIndex(e)) else null,
+                        .normal = if (entry_iter.next()) |e| (try parseOptionalIndex(e)) else null,
                     });
 
                     i += 1;
                 }
                 try num_verts.append(i);
             },
+            DefType.Object => {
+                if (num_verts.items.len > 0) {
+                    // TODO store name
+                    try meshes.append(Mesh{
+                        .num_vertices = num_verts.toOwnedSlice(),
+                        .indices = indices.toOwnedSlice(),
+                    });
+
+                    num_verts = ArrayList(u32).init(allocator);
+                    errdefer num_verts.deinit();
+                    indices = ArrayList(Index).init(allocator);
+                    errdefer indices.deinit();
+                }
+            },
+            else => {
+                // ignore
+            },
         }
     }
 
-    // TODO support multiple meshes
-    try meshes.append(Mesh{
-        .num_vertices = num_verts.toOwnedSlice(),
-        .indices = indices.toOwnedSlice(),
-    });
+    // add last mesh (as long as it is not empty)
+    if (num_verts.items.len > 0) {
+        try meshes.append(Mesh{
+            .num_vertices = num_verts.toOwnedSlice(),
+            .indices = indices.toOwnedSlice(),
+        });
+    }
 
     return ObjData{
         .vertices = vertices.toOwnedSlice(),
@@ -131,7 +180,13 @@ fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     };
 }
 
-fn parse_type(t: []const u8) !DefType {
+fn parseOptionalIndex(v: []const u8) !?u32 {
+    if (std.mem.eql(u8, v, "")) return null;
+    const i = try parseUnsigned(u32, v, 10);
+    return i - 1;
+}
+
+fn parseType(t: []const u8) !DefType {
     if (std.mem.eql(u8, t, "#")) {
         return DefType.Comment;
     } else if (std.mem.eql(u8, t, "v")) {
@@ -142,6 +197,14 @@ fn parse_type(t: []const u8) !DefType {
         return DefType.Normal;
     } else if (std.mem.eql(u8, t, "f")) {
         return DefType.Face;
+    } else if (std.mem.eql(u8, t, "o")) {
+        return DefType.Object;
+    } else if (std.mem.eql(u8, t, "mtllib")) {
+        return DefType.MaterialLib;
+    } else if (std.mem.eql(u8, t, "usemtl")) {
+        return DefType.UseMaterial;
+    } else if (std.mem.eql(u8, t, "s")) {
+        return DefType.Smoothing;
     } else {
         return error.UnknownDefType;
     }
@@ -149,65 +212,156 @@ fn parse_type(t: []const u8) !DefType {
 
 // ------------------------------------------------------------------------------
 
-fn test_single_field(comptime field: []const u8, data: []const u8, value: anytype) !void {
-    const allocator = std.testing.allocator;
-    var result = try parse(allocator, data);
-    defer result.deinit(allocator);
-
-    var expected = ObjData{
-        .vertices = &[_]f32{},
-        .tex_coords = &[_]f32{},
-        .normals = &[_]f32{},
-        .meshes = &[_]Mesh{},
-    };
-    @field(expected, field) = value;
-
-    expect(expected.eq(result));
-}
+const test_allocator = std.testing.allocator;
 
 test "unknown def" {
-    const allocator = std.testing.allocator;
-    expectError(error.UnknownDefType, parse(allocator, "invalid 0 1 2"));
+    expectError(error.UnknownDefType, parse(test_allocator, "invalid 0 1 2"));
 }
 
 test "comment" {
-    const allocator = std.testing.allocator;
-    const result = try parse(allocator, "# this is a comment");
-    defer result.deinit(allocator);
+    const result = try parse(test_allocator, "# this is a comment");
+    defer result.deinit(test_allocator);
+
     expect(result.vertices.len == 0);
     expect(result.tex_coords.len == 0);
     expect(result.normals.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "vertex def xyz" {
-    try test_single_field("vertices", "v 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234, 0.345 });
+test "single vertex def xyz" {
+    var result = try parse(test_allocator, "v 0.123 0.234 0.345");
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.vertices, &[_]f32{ 0.123, 0.234, 0.345 }));
+    expect(result.tex_coords.len == 0);
+    expect(result.normals.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "vertex def xyzw" {
-    try test_single_field("vertices", "v 0.123 0.234 0.345 0.456", &[_]f32{ 0.123, 0.234, 0.345 });
+test "single vertex def xyzw" {
+    var result = try parse(test_allocator, "v 0.123 0.234 0.345 0.456");
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.vertices, &[_]f32{ 0.123, 0.234, 0.345 }));
+    expect(result.tex_coords.len == 0);
+    expect(result.normals.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "tex coord def uv" {
-    try test_single_field("tex_coords", "vt 0.123 0.234", &[_]f32{ 0.123, 0.234 });
+test "single tex coord def uv" {
+    var result = try parse(test_allocator, "vt 0.123 0.234");
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.123, 0.234 }));
+    expect(result.vertices.len == 0);
+    expect(result.normals.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "tex coord def uvw" {
-    try test_single_field("tex_coords", "vt 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234 });
+test "single tex coord def uvw" {
+    var result = try parse(test_allocator, "vt 0.123 0.234 0.345");
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.123, 0.234 }));
+    expect(result.vertices.len == 0);
+    expect(result.normals.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "normal def xyz" {
-    try test_single_field("normals", "vn 0.123 0.234 0.345", &[_]f32{ 0.123, 0.234, 0.345 });
+test "single normal def xyz" {
+    var result = try parse(test_allocator, "vn 0.123 0.234 0.345");
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.normals, &[_]f32{ 0.123, 0.234, 0.345 }));
+    expect(result.vertices.len == 0);
+    expect(result.tex_coords.len == 0);
+    expect(result.meshes.len == 0);
 }
 
-test "face def vertex only" {
-    try test_single_field("meshes", "f 1 2 3", &[_]Mesh{
-        Mesh{
-            .num_vertices = &[_]u32{3},
-            .indices = &[_]Index{
-                Index{ .vertex = 0, .tex_coord = null, .normal = null },
-                Index{ .vertex = 1, .tex_coord = null, .normal = null },
-                Index{ .vertex = 2, .tex_coord = null, .normal = null },
-            },
+test "single face def vertex only" {
+    var result = try parse(test_allocator, "f 1 2 3");
+    defer result.deinit(test_allocator);
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{3},
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = null, .normal = null },
+            Index{ .vertex = 1, .tex_coord = null, .normal = null },
+            Index{ .vertex = 2, .tex_coord = null, .normal = null },
         },
-    });
+    };
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
+}
+
+test "single face def vertex + tex coord" {
+    var result = try parse(test_allocator, "f 1/4 2/5 3/6");
+    defer result.deinit(test_allocator);
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{3},
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = 3, .normal = null },
+            Index{ .vertex = 1, .tex_coord = 4, .normal = null },
+            Index{ .vertex = 2, .tex_coord = 5, .normal = null },
+        },
+    };
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
+}
+
+test "single face def vertex + tex coord + normal" {
+    var result = try parse(test_allocator, "f 1/4/7 2/5/8 3/6/9");
+    defer result.deinit(test_allocator);
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{3},
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = 3, .normal = 6 },
+            Index{ .vertex = 1, .tex_coord = 4, .normal = 7 },
+            Index{ .vertex = 2, .tex_coord = 5, .normal = 8 },
+        },
+    };
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
+}
+
+test "single face def vertex + normal" {
+    var result = try parse(test_allocator, "f 1//7 2//8 3//9");
+    defer result.deinit(test_allocator);
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{3},
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = null, .normal = 6 },
+            Index{ .vertex = 1, .tex_coord = null, .normal = 7 },
+            Index{ .vertex = 2, .tex_coord = null, .normal = 8 },
+        },
+    };
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
+}
+
+test "triangle obj exported from blender" {
+    const data = @embedFile("../triangle.obj");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    expect(std.mem.eql(f32, result.vertices, &[_]f32{ -1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, -1.0 }));
+    expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.0, 0.0, 1.0, 0.0, 1.0, 1.0 }));
+    expect(std.mem.eql(f32, result.normals, &[_]f32{ 0.0, 1.0, 0.0 }));
+
+    const mesh = Mesh{
+        .num_vertices = &[_]u32{3},
+        .indices = &[_]Index{
+            Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+            Index{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+            Index{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+        },
+    };
+
+    expect(result.meshes.len == 1);
+    expect(result.meshes[0].eq(mesh));
+}
 }
