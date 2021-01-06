@@ -349,21 +349,36 @@ test "triangle obj exported from blender" {
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
 
-    expect(std.mem.eql(f32, result.vertices, &[_]f32{ -1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, -1.0 }));
-    expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.0, 0.0, 1.0, 0.0, 1.0, 1.0 }));
-    expect(std.mem.eql(f32, result.normals, &[_]f32{ 0.0, 1.0, 0.0 }));
-
-    const mesh = Mesh{
-        .num_vertices = &[_]u32{3},
-        .indices = &[_]Index{
-            Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
-            Index{ .vertex = 1, .tex_coord = 1, .normal = 0 },
-            Index{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+    const expected = ObjData{
+        .vertices = &[_]f32{
+            -1.0, 0.0, 0.0,
+            1.0,  0.0, 1.0,
+            1.0,  0.0, -1.0,
+        },
+        .tex_coords = &[_]f32{
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+        },
+        .normals = &[_]f32{ 0.0, 1.0, 0.0 },
+        .meshes = &[_]Mesh{
+            Mesh{
+                .num_vertices = &[_]u32{3},
+                .indices = &[_]Index{
+                    Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    Index{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+                    Index{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+                },
+            },
         },
     };
 
+    expectEqualSlices(f32, result.vertices, expected.vertices);
+    expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
+    expectEqualSlices(f32, result.normals, expected.normals);
+
     expect(result.meshes.len == 1);
-    expect(result.meshes[0].eq(mesh));
+    expect(result.meshes[0].eq(expected.meshes[0]));
 }
 
 test "cube obj exported from blender" {
