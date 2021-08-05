@@ -1,4 +1,6 @@
-const Builder = @import("std").build.Builder;
+const std = @import("std");
+const Builder = std.build.Builder;
+const Mode = std.builtin.Mode;
 
 pub fn build(b: *Builder) void {
     const mode = b.standardReleaseOptions();
