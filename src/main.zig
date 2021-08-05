@@ -11,7 +11,7 @@ const expect = std.testing.expect;
 const expectError = std.testing.expectError;
 const expectEqualSlices = std.testing.expectEqualSlices;
 
-const ObjData = struct {
+pub const ObjData = struct {
     vertices: []const f32,
     tex_coords: []const f32,
     normals: []const f32,
@@ -40,7 +40,7 @@ const ObjData = struct {
     }
 };
 
-const Index = struct {
+pub const Index = struct {
     vertex: ?u32,
     tex_coord: ?u32,
     normal: ?u32,
@@ -60,11 +60,11 @@ fn compareOpt(a: ?u32, b: ?u32) bool {
     return a == null and b == null;
 }
 
-const Mesh = struct {
+pub const Mesh = struct {
     num_vertices: []const u32,
     indices: []const Index,
 
-    fn deinit(self: Mesh, allocator: *Allocator) void {
+    pub fn deinit(self: Mesh, allocator: *Allocator) void {
         allocator.free(self.num_vertices);
         allocator.free(self.indices);
     }
