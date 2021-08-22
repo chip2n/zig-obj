@@ -74,6 +74,7 @@ pub const Mesh = struct {
     indices: []const Index,
 
     pub fn deinit(self: Mesh, allocator: *Allocator) void {
+        if (self.name) |name| allocator.free(name);
         allocator.free(self.num_vertices);
         allocator.free(self.indices);
     }
@@ -168,7 +169,7 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
                     });
                 }
 
-                name = iter.next().?;
+                name = try allocator.dupe(u8, iter.next().?);
                 num_verts = ArrayList(u32).init(allocator);
                 errdefer num_verts.deinit();
                 indices = ArrayList(Index).init(allocator);
