@@ -60,7 +60,16 @@ fn compareOpt(a: ?u32, b: ?u32) bool {
     return a == null and b == null;
 }
 
+fn eqlZ(comptime T: type, a: ?[]const T, b: ?[]const T) bool {
+    if (a != null and b != null) {
+        return std.mem.eql(T, a.?, b.?);
+    }
+
+    return a == null and b == null;
+}
+
 pub const Mesh = struct {
+    name: ?[]const u8,
     num_vertices: []const u32,
     indices: []const Index,
 
@@ -70,6 +79,7 @@ pub const Mesh = struct {
     }
 
     fn eq(self: Mesh, other: Mesh) bool {
+        if (!eqlZ(u8, self.name, other.name)) return false;
         if (self.indices.len != other.indices.len) return false;
         if (!std.mem.eql(u32, self.num_vertices, other.num_vertices)) return false;
         for (self.indices) |index, i| {
@@ -108,6 +118,7 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     errdefer meshes.deinit();
 
     // current mesh
+    var name: ?[]const u8 = null;
     var num_verts = ArrayList(u32).init(allocator);
     errdefer num_verts.deinit();
     var indices = ArrayList(Index).init(allocator);
@@ -150,17 +161,18 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
             },
             DefType.Object => {
                 if (num_verts.items.len > 0) {
-                    // TODO store name
                     try meshes.append(Mesh{
+                        .name = name,
                         .num_vertices = num_verts.toOwnedSlice(),
                         .indices = indices.toOwnedSlice(),
                     });
-
-                    num_verts = ArrayList(u32).init(allocator);
-                    errdefer num_verts.deinit();
-                    indices = ArrayList(Index).init(allocator);
-                    errdefer indices.deinit();
                 }
+
+                name = iter.next().?;
+                num_verts = ArrayList(u32).init(allocator);
+                errdefer num_verts.deinit();
+                indices = ArrayList(Index).init(allocator);
+                errdefer indices.deinit();
             },
             else => {
                 // ignore
@@ -171,6 +183,7 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     // add last mesh (as long as it is not empty)
     if (num_verts.items.len > 0) {
         try meshes.append(Mesh{
+            .name = name,
             .num_vertices = num_verts.toOwnedSlice(),
             .indices = indices.toOwnedSlice(),
         });
@@ -304,6 +317,7 @@ test "single face def vertex only" {
     defer result.deinit(test_allocator);
 
     const mesh = Mesh{
+        .name = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Index{
             Index{ .vertex = 0, .tex_coord = null, .normal = null },
@@ -320,6 +334,7 @@ test "single face def vertex + tex coord" {
     defer result.deinit(test_allocator);
 
     const mesh = Mesh{
+        .name = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Index{
             Index{ .vertex = 0, .tex_coord = 3, .normal = null },
@@ -336,6 +351,7 @@ test "single face def vertex + tex coord + normal" {
     defer result.deinit(test_allocator);
 
     const mesh = Mesh{
+        .name = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Index{
             Index{ .vertex = 0, .tex_coord = 3, .normal = 6 },
@@ -352,6 +368,7 @@ test "single face def vertex + normal" {
     defer result.deinit(test_allocator);
 
     const mesh = Mesh{
+        .name = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Index{
             Index{ .vertex = 0, .tex_coord = null, .normal = 6 },
@@ -383,6 +400,7 @@ test "triangle obj exported from blender" {
         .normals = &[_]f32{ 0.0, 1.0, 0.0 },
         .meshes = &[_]Mesh{
             Mesh{
+                .name = "Plane",
                 .num_vertices = &[_]u32{3},
                 .indices = &[_]Index{
                     Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
@@ -444,6 +462,7 @@ test "cube obj exported from blender" {
         },
         .meshes = &[_]Mesh{
             Mesh{
+                .name = "Cube",
                 .num_vertices = &[_]u32{ 4, 4, 4, 4, 4, 4 },
                 .indices = &[_]Index{
                     Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
