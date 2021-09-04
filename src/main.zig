@@ -125,9 +125,9 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
     var indices = ArrayList(Index).init(allocator);
     errdefer indices.deinit();
 
-    var lines = tokenize(data, "\n");
+    var lines = tokenize(u8, data, "\n");
     while (lines.next()) |line| {
-        var iter = tokenize(line, " ");
+        var iter = tokenize(u8, line, " ");
         const def_type = try parseType(iter.next().?);
         switch (def_type) {
             DefType.Vertex => {
@@ -147,7 +147,7 @@ pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
             DefType.Face => {
                 var i: u32 = 0;
                 while (iter.next()) |entry| {
-                    var entry_iter = split(entry, "/");
+                    var entry_iter = split(u8, entry, "/");
                     // TODO support x//y and similar
                     // NOTE obj is one-indexed - let's make it zero-indexed
                     try indices.append(Index{
