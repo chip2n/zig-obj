@@ -30,7 +30,7 @@ pub const ObjData = struct {
         return true;
     }
 
-    pub fn deinit(self: ObjData, allocator: *Allocator) void {
+    pub fn deinit(self: ObjData, allocator: Allocator) void {
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
         allocator.free(self.normals);
@@ -73,7 +73,7 @@ pub const Mesh = struct {
     num_vertices: []const u32,
     indices: []const Index,
 
-    pub fn deinit(self: Mesh, allocator: *Allocator) void {
+    pub fn deinit(self: Mesh, allocator: Allocator) void {
         if (self.name) |name| allocator.free(name);
         allocator.free(self.num_vertices);
         allocator.free(self.indices);
@@ -105,7 +105,7 @@ const DefType = enum {
     ParamVertex,
 };
 
-pub fn parse(allocator: *Allocator, data: []const u8) !ObjData {
+pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     var vertices = ArrayList(f32).init(allocator);
     errdefer vertices.deinit();
 
