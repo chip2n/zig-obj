@@ -7,30 +7,17 @@ const assert = std.debug.assert;
 const parseFloat = std.fmt.parseFloat;
 const parseInt = std.fmt.parseInt;
 
-const expect = std.testing.expect;
-const expectError = std.testing.expectError;
-const expectEqualSlices = std.testing.expectEqualSlices;
-
 pub const ObjData = struct {
+    material_libs: []const []const u8,
+
     vertices: []const f32,
     tex_coords: []const f32,
     normals: []const f32,
 
     meshes: []const Mesh,
 
-    fn eq(self: ObjData, other: ObjData) bool {
-        if (!std.mem.eql(f32, self.vertices, other.vertices)) return false;
-        if (!std.mem.eql(f32, self.tex_coords, other.tex_coords)) return false;
-        if (!std.mem.eql(f32, self.normals, other.normals)) return false;
-
-        if (self.meshes.len != other.meshes.len) return false;
-        for (self.meshes) |mesh, i| {
-            if (!mesh.eq(other.meshes[i])) return false;
-        }
-        return true;
-    }
-
     pub fn deinit(self: ObjData, allocator: Allocator) void {
+        allocator.free(self.material_libs);
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
         allocator.free(self.normals);
@@ -70,17 +57,20 @@ pub const Mesh = struct {
     };
 
     name: ?[]const u8,
+    material: ?[]const u8,
     num_vertices: []const u32,
     indices: []const Mesh.Index,
 
     pub fn deinit(self: Mesh, allocator: Allocator) void {
         if (self.name) |name| allocator.free(name);
+        if (self.material) |material| allocator.free(material);
         allocator.free(self.num_vertices);
         allocator.free(self.indices);
     }
 
     fn eq(self: Mesh, other: Mesh) bool {
         if (!eqlZ(u8, self.name, other.name)) return false;
+        if (!eqlZ(u8, self.material, other.material)) return false;
         if (self.indices.len != other.indices.len) return false;
         if (!std.mem.eql(u32, self.num_vertices, other.num_vertices)) return false;
         for (self.indices) |index, i| {
@@ -106,6 +96,9 @@ const DefType = enum {
 };
 
 pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
+    var material_libs = ArrayList([]const u8).init(allocator);
+    errdefer material_libs.deinit();
+
     var vertices = ArrayList(f32).init(allocator);
     errdefer vertices.deinit();
 
@@ -120,6 +113,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
 
     // current mesh
     var name: ?[]const u8 = null;
+    var material: ?[]const u8 = null;
     var num_verts = ArrayList(u32).init(allocator);
     errdefer num_verts.deinit();
     var indices = ArrayList(Mesh.Index).init(allocator);
@@ -164,6 +158,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
                 if (num_verts.items.len > 0) {
                     try meshes.append(.{
                         .name = name,
+                        .material = material,
                         .num_vertices = num_verts.toOwnedSlice(),
                         .indices = indices.toOwnedSlice(),
                     });
@@ -175,9 +170,13 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
                 indices = ArrayList(Mesh.Index).init(allocator);
                 errdefer indices.deinit();
             },
-            else => {
-                // ignore
+            .use_material => {
+                material = try allocator.dupe(u8, iter.next().?);
             },
+            .material_lib => {
+                try material_libs.append(iter.next().?);
+            },
+            else => {},
         }
     }
 
@@ -185,12 +184,14 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     if (num_verts.items.len > 0) {
         try meshes.append(Mesh{
             .name = name,
+            .material = material,
             .num_vertices = num_verts.toOwnedSlice(),
             .indices = indices.toOwnedSlice(),
         });
     }
 
     return ObjData{
+        .material_libs = material_libs.toOwnedSlice(),
         .vertices = vertices.toOwnedSlice(),
         .tex_coords = tex_coords.toOwnedSlice(),
         .normals = normals.toOwnedSlice(),
@@ -201,10 +202,6 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
 fn parseOptionalIndex(v: []const u8, indices: []f32) !?u32 {
     if (std.mem.eql(u8, v, "")) return null;
     const i = try parseInt(i32, v, 10);
-    // const i = parseInt(i32, v, 10) catch |e| blk: {
-    //     std.log.warn("Parsing: {}", .{v});
-    //     break :blk 0;
-    // };
 
     if (i < 0) {
         // index is relative to end of indices list, -1 meaning the last element
@@ -248,6 +245,11 @@ fn parseType(t: []const u8) !DefType {
 // ------------------------------------------------------------------------------
 
 const test_allocator = std.testing.allocator;
+
+const expect = std.testing.expect;
+const expectError = std.testing.expectError;
+const expectEqualSlices = std.testing.expectEqualSlices;
+const expectEqualStrings = std.testing.expectEqualStrings;
 
 test "unknown def" {
     try expectError(error.UnknownDefType, parse(test_allocator, "invalid 0 1 2"));
@@ -319,6 +321,7 @@ test "single face def vertex only" {
 
     const mesh = Mesh{
         .name = null,
+        .material = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Mesh.Index{
             Mesh.Index{ .vertex = 0, .tex_coord = null, .normal = null },
@@ -336,6 +339,7 @@ test "single face def vertex + tex coord" {
 
     const mesh = Mesh{
         .name = null,
+        .material = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Mesh.Index{
             .{ .vertex = 0, .tex_coord = 3, .normal = null },
@@ -353,6 +357,7 @@ test "single face def vertex + tex coord + normal" {
 
     const mesh = Mesh{
         .name = null,
+        .material = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Mesh.Index{
             .{ .vertex = 0, .tex_coord = 3, .normal = 6 },
@@ -370,6 +375,7 @@ test "single face def vertex + normal" {
 
     const mesh = Mesh{
         .name = null,
+        .material = null,
         .num_vertices = &[_]u32{3},
         .indices = &[_]Mesh.Index{
             .{ .vertex = 0, .tex_coord = null, .normal = 6 },
@@ -388,6 +394,7 @@ test "triangle obj exported from blender" {
     defer result.deinit(test_allocator);
 
     const expected = ObjData{
+        .material_libs = &[_][]const u8{"triangle.mtl"},
         .vertices = &[_]f32{
             -1.0, 0.0, 0.0,
             1.0,  0.0, 1.0,
@@ -402,6 +409,7 @@ test "triangle obj exported from blender" {
         .meshes = &[_]Mesh{
             Mesh{
                 .name = "Plane",
+                .material = "None",
                 .num_vertices = &[_]u32{3},
                 .indices = &[_]Mesh.Index{
                     .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
@@ -411,6 +419,8 @@ test "triangle obj exported from blender" {
             },
         },
     };
+    try expect(result.material_libs.len == 1);
+    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
 
     try expectEqualSlices(f32, result.vertices, expected.vertices);
     try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
@@ -427,6 +437,7 @@ test "cube obj exported from blender" {
     defer result.deinit(test_allocator);
 
     const expected = ObjData{
+        .material_libs = &[_][]const u8{"cube.mtl"},
         .vertices = &[_]f32{
             1.0,  1.0,  -1.0,
             1.0,  -1.0, -1.0,
@@ -464,6 +475,7 @@ test "cube obj exported from blender" {
         .meshes = &[_]Mesh{
             Mesh{
                 .name = "Cube",
+                .material = "Material",
                 .num_vertices = &[_]u32{ 4, 4, 4, 4, 4, 4 },
                 .indices = &[_]Mesh.Index{
                     .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
@@ -494,6 +506,9 @@ test "cube obj exported from blender" {
             },
         },
     };
+
+    try expect(result.material_libs.len == 1);
+    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
 
     try expectEqualSlices(f32, result.vertices, expected.vertices);
     try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
