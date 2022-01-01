@@ -1,0 +1,7 @@
+* zig-obj
+
+Parse ~.obj~ and ~.mtl~ files with Zig.
+
+Currently only have partial support for each file format (the things I've needed
+for Blender exports so far while doing gamedev). If something is missing, feel
+free to open an issue and/or pull request.
