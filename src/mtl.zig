@@ -53,7 +53,6 @@ pub fn parse(allocator: std.mem.Allocator, data: []const u8) !MaterialData {
     while (lines.next()) |line| {
         var words = std.mem.tokenize(u8, line, " ");
         const keyword = try parseKeyword(words.next().?);
-        std.log.warn("key: {}", .{keyword});
 
         switch (keyword) {
             .comment => {},
