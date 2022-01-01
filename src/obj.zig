@@ -164,14 +164,14 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
                     });
                 }
 
-                name = try allocator.dupe(u8, iter.next().?);
+                name = iter.next().?;
                 num_verts = ArrayList(u32).init(allocator);
                 errdefer num_verts.deinit();
                 indices = ArrayList(Mesh.Index).init(allocator);
                 errdefer indices.deinit();
             },
             .use_material => {
-                material = try allocator.dupe(u8, iter.next().?);
+                material = iter.next().?;
             },
             .material_lib => {
                 try material_libs.append(iter.next().?);
@@ -183,8 +183,8 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     // add last mesh (as long as it is not empty)
     if (num_verts.items.len > 0) {
         try meshes.append(Mesh{
-            .name = name,
-            .material = material,
+            .name = if (name) |n| try allocator.dupe(u8, n) else null,
+            .material = if (material) |m| try allocator.dupe(u8, m) else null,
             .num_vertices = num_verts.toOwnedSlice(),
             .indices = indices.toOwnedSlice(),
         });
