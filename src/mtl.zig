@@ -12,7 +12,7 @@ pub const MaterialData = struct {
 };
 
 // NOTE: I'm not sure which material statements are optional. For now, I'm assuming all of them are.
-const Material = struct {
+pub const Material = struct {
     ambient_color: ?[3]f32 = null,
     diffuse_color: ?[3]f32 = null,
     specular_color: ?[3]f32 = null,

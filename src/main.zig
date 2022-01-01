@@ -1,7 +1,15 @@
 const std = @import("std");
 
-pub const parseObj = @import("obj.zig").parse;
-pub const parseMtl = @import("mtl.zig").parse;
+const obj = @import("obj.zig");
+const mtl = @import("mtl.zig");
+
+pub const parseObj = obj.parse;
+pub const ObjData = obj.ObjData;
+pub const Mesh = obj.Mesh;
+
+pub const parseMtl = mtl.parse;
+pub const MaterialData = mtl.MaterialData;
+pub const Material = mtl.Material;
 
 test "zig-obj" {
     std.testing.refAllDecls(@This());

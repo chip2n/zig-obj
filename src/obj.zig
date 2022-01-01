@@ -40,18 +40,6 @@ pub const ObjData = struct {
     }
 };
 
-pub const Index = struct {
-    vertex: ?u32,
-    tex_coord: ?u32,
-    normal: ?u32,
-
-    fn eq(self: Index, other: Index) bool {
-        return compareOpt(self.vertex, other.vertex) and
-            compareOpt(self.tex_coord, other.tex_coord) and
-            compareOpt(self.normal, other.normal);
-    }
-};
-
 fn compareOpt(a: ?u32, b: ?u32) bool {
     if (a != null and b != null) {
         return a.? == b.?;
@@ -69,9 +57,21 @@ fn eqlZ(comptime T: type, a: ?[]const T, b: ?[]const T) bool {
 }
 
 pub const Mesh = struct {
+    pub const Index = struct {
+        vertex: ?u32,
+        tex_coord: ?u32,
+        normal: ?u32,
+
+        fn eq(self: Mesh.Index, other: Mesh.Index) bool {
+            return compareOpt(self.vertex, other.vertex) and
+                compareOpt(self.tex_coord, other.tex_coord) and
+                compareOpt(self.normal, other.normal);
+        }
+    };
+
     name: ?[]const u8,
     num_vertices: []const u32,
-    indices: []const Index,
+    indices: []const Mesh.Index,
 
     pub fn deinit(self: Mesh, allocator: Allocator) void {
         if (self.name) |name| allocator.free(name);
@@ -122,7 +122,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     var name: ?[]const u8 = null;
     var num_verts = ArrayList(u32).init(allocator);
     errdefer num_verts.deinit();
-    var indices = ArrayList(Index).init(allocator);
+    var indices = ArrayList(Mesh.Index).init(allocator);
     errdefer indices.deinit();
 
     var lines = tokenize(u8, data, "\n");
@@ -150,7 +150,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
                     var entry_iter = split(u8, entry, "/");
                     // TODO support x//y and similar
                     // NOTE obj is one-indexed - let's make it zero-indexed
-                    try indices.append(Index{
+                    try indices.append(.{
                         .vertex = if (entry_iter.next()) |e| (try parseOptionalIndex(e, vertices.items)) else null,
                         .tex_coord = if (entry_iter.next()) |e| (try parseOptionalIndex(e, tex_coords.items)) else null,
                         .normal = if (entry_iter.next()) |e| (try parseOptionalIndex(e, normals.items)) else null,
@@ -162,7 +162,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
             },
             .object => {
                 if (num_verts.items.len > 0) {
-                    try meshes.append(Mesh{
+                    try meshes.append(.{
                         .name = name,
                         .num_vertices = num_verts.toOwnedSlice(),
                         .indices = indices.toOwnedSlice(),
@@ -172,7 +172,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
                 name = try allocator.dupe(u8, iter.next().?);
                 num_verts = ArrayList(u32).init(allocator);
                 errdefer num_verts.deinit();
-                indices = ArrayList(Index).init(allocator);
+                indices = ArrayList(Mesh.Index).init(allocator);
                 errdefer indices.deinit();
             },
             else => {
@@ -320,10 +320,10 @@ test "single face def vertex only" {
     const mesh = Mesh{
         .name = null,
         .num_vertices = &[_]u32{3},
-        .indices = &[_]Index{
-            Index{ .vertex = 0, .tex_coord = null, .normal = null },
-            Index{ .vertex = 1, .tex_coord = null, .normal = null },
-            Index{ .vertex = 2, .tex_coord = null, .normal = null },
+        .indices = &[_]Mesh.Index{
+            Mesh.Index{ .vertex = 0, .tex_coord = null, .normal = null },
+            Mesh.Index{ .vertex = 1, .tex_coord = null, .normal = null },
+            Mesh.Index{ .vertex = 2, .tex_coord = null, .normal = null },
         },
     };
     try expect(result.meshes.len == 1);
@@ -337,10 +337,10 @@ test "single face def vertex + tex coord" {
     const mesh = Mesh{
         .name = null,
         .num_vertices = &[_]u32{3},
-        .indices = &[_]Index{
-            Index{ .vertex = 0, .tex_coord = 3, .normal = null },
-            Index{ .vertex = 1, .tex_coord = 4, .normal = null },
-            Index{ .vertex = 2, .tex_coord = 5, .normal = null },
+        .indices = &[_]Mesh.Index{
+            .{ .vertex = 0, .tex_coord = 3, .normal = null },
+            .{ .vertex = 1, .tex_coord = 4, .normal = null },
+            .{ .vertex = 2, .tex_coord = 5, .normal = null },
         },
     };
     try expect(result.meshes.len == 1);
@@ -354,10 +354,10 @@ test "single face def vertex + tex coord + normal" {
     const mesh = Mesh{
         .name = null,
         .num_vertices = &[_]u32{3},
-        .indices = &[_]Index{
-            Index{ .vertex = 0, .tex_coord = 3, .normal = 6 },
-            Index{ .vertex = 1, .tex_coord = 4, .normal = 7 },
-            Index{ .vertex = 2, .tex_coord = 5, .normal = 8 },
+        .indices = &[_]Mesh.Index{
+            .{ .vertex = 0, .tex_coord = 3, .normal = 6 },
+            .{ .vertex = 1, .tex_coord = 4, .normal = 7 },
+            .{ .vertex = 2, .tex_coord = 5, .normal = 8 },
         },
     };
     try expect(result.meshes.len == 1);
@@ -371,10 +371,10 @@ test "single face def vertex + normal" {
     const mesh = Mesh{
         .name = null,
         .num_vertices = &[_]u32{3},
-        .indices = &[_]Index{
-            Index{ .vertex = 0, .tex_coord = null, .normal = 6 },
-            Index{ .vertex = 1, .tex_coord = null, .normal = 7 },
-            Index{ .vertex = 2, .tex_coord = null, .normal = 8 },
+        .indices = &[_]Mesh.Index{
+            .{ .vertex = 0, .tex_coord = null, .normal = 6 },
+            .{ .vertex = 1, .tex_coord = null, .normal = 7 },
+            .{ .vertex = 2, .tex_coord = null, .normal = 8 },
         },
     };
     try expect(result.meshes.len == 1);
@@ -403,10 +403,10 @@ test "triangle obj exported from blender" {
             Mesh{
                 .name = "Plane",
                 .num_vertices = &[_]u32{3},
-                .indices = &[_]Index{
-                    Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
-                    Index{ .vertex = 1, .tex_coord = 1, .normal = 0 },
-                    Index{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+                .indices = &[_]Mesh.Index{
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    .{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+                    .{ .vertex = 2, .tex_coord = 2, .normal = 0 },
                 },
             },
         },
@@ -465,31 +465,31 @@ test "cube obj exported from blender" {
             Mesh{
                 .name = "Cube",
                 .num_vertices = &[_]u32{ 4, 4, 4, 4, 4, 4 },
-                .indices = &[_]Index{
-                    Index{ .vertex = 0, .tex_coord = 0, .normal = 0 },
-                    Index{ .vertex = 4, .tex_coord = 1, .normal = 0 },
-                    Index{ .vertex = 6, .tex_coord = 2, .normal = 0 },
-                    Index{ .vertex = 2, .tex_coord = 3, .normal = 0 },
-                    Index{ .vertex = 3, .tex_coord = 4, .normal = 1 },
-                    Index{ .vertex = 2, .tex_coord = 3, .normal = 1 },
-                    Index{ .vertex = 6, .tex_coord = 5, .normal = 1 },
-                    Index{ .vertex = 7, .tex_coord = 6, .normal = 1 },
-                    Index{ .vertex = 7, .tex_coord = 7, .normal = 2 },
-                    Index{ .vertex = 6, .tex_coord = 8, .normal = 2 },
-                    Index{ .vertex = 4, .tex_coord = 9, .normal = 2 },
-                    Index{ .vertex = 5, .tex_coord = 10, .normal = 2 },
-                    Index{ .vertex = 5, .tex_coord = 11, .normal = 3 },
-                    Index{ .vertex = 1, .tex_coord = 12, .normal = 3 },
-                    Index{ .vertex = 3, .tex_coord = 4, .normal = 3 },
-                    Index{ .vertex = 7, .tex_coord = 13, .normal = 3 },
-                    Index{ .vertex = 1, .tex_coord = 12, .normal = 4 },
-                    Index{ .vertex = 0, .tex_coord = 0, .normal = 4 },
-                    Index{ .vertex = 2, .tex_coord = 3, .normal = 4 },
-                    Index{ .vertex = 3, .tex_coord = 4, .normal = 4 },
-                    Index{ .vertex = 5, .tex_coord = 10, .normal = 5 },
-                    Index{ .vertex = 4, .tex_coord = 9, .normal = 5 },
-                    Index{ .vertex = 0, .tex_coord = 0, .normal = 5 },
-                    Index{ .vertex = 1, .tex_coord = 12, .normal = 5 },
+                .indices = &[_]Mesh.Index{
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    .{ .vertex = 4, .tex_coord = 1, .normal = 0 },
+                    .{ .vertex = 6, .tex_coord = 2, .normal = 0 },
+                    .{ .vertex = 2, .tex_coord = 3, .normal = 0 },
+                    .{ .vertex = 3, .tex_coord = 4, .normal = 1 },
+                    .{ .vertex = 2, .tex_coord = 3, .normal = 1 },
+                    .{ .vertex = 6, .tex_coord = 5, .normal = 1 },
+                    .{ .vertex = 7, .tex_coord = 6, .normal = 1 },
+                    .{ .vertex = 7, .tex_coord = 7, .normal = 2 },
+                    .{ .vertex = 6, .tex_coord = 8, .normal = 2 },
+                    .{ .vertex = 4, .tex_coord = 9, .normal = 2 },
+                    .{ .vertex = 5, .tex_coord = 10, .normal = 2 },
+                    .{ .vertex = 5, .tex_coord = 11, .normal = 3 },
+                    .{ .vertex = 1, .tex_coord = 12, .normal = 3 },
+                    .{ .vertex = 3, .tex_coord = 4, .normal = 3 },
+                    .{ .vertex = 7, .tex_coord = 13, .normal = 3 },
+                    .{ .vertex = 1, .tex_coord = 12, .normal = 4 },
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 4 },
+                    .{ .vertex = 2, .tex_coord = 3, .normal = 4 },
+                    .{ .vertex = 3, .tex_coord = 4, .normal = 4 },
+                    .{ .vertex = 5, .tex_coord = 10, .normal = 5 },
+                    .{ .vertex = 4, .tex_coord = 9, .normal = 5 },
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 5 },
+                    .{ .vertex = 1, .tex_coord = 12, .normal = 5 },
                 },
             },
         },
