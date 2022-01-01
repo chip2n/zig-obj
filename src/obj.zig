@@ -157,8 +157,8 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
             .object => {
                 if (num_verts.items.len > 0) {
                     try meshes.append(.{
-                        .name = name,
-                        .material = material,
+                        .name = if (name) |n| try allocator.dupe(u8, n) else null,
+                        .material = if (material) |m| try allocator.dupe(u8, m) else null,
                         .num_vertices = num_verts.toOwnedSlice(),
                         .indices = indices.toOwnedSlice(),
                     });
