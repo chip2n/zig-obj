@@ -6,7 +6,7 @@ const parseInt = std.fmt.parseInt;
 pub const MaterialData = struct {
     materials: std.StringHashMap(Material),
 
-    fn deinit(self: *@This()) void {
+    pub fn deinit(self: *@This()) void {
         self.materials.deinit();
     }
 };
