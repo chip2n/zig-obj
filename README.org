@@ -8,23 +8,23 @@ Minimal Zig parser for ~.obj~ and ~.mtl~ files.
 The following features are implemented:
 
 OBJ files:
-- [X] Vertices
-- [X] Texture coordinates
-- [X] Normals
-- [X] Objects
+- Vertices
+- Texture coordinates
+- Normals
+- Objects
 
 MTL files:
-- [X] Bump map
-- [X] Diffuse map
-- [X] Specular map
-- [X] Ambient color
-- [X] Diffuse color
-- [X] Specular color
-- [X] Specular highlight
-- [X] Emissive coefficient
-- [X] Optical density
-- [X] Dissolve
-- [X] Illumination
+- Bump map
+- Diffuse map
+- Specular map
+- Ambient color
+- Diffuse color
+- Specular color
+- Specular highlight
+- Emissive coefficient
+- Optical density
+- Dissolve
+- Illumination
 
 If something is missing or not working properly, feel free to open an issue/pull
 request and I'll take a look.
