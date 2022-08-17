@@ -465,7 +465,7 @@ test "multiple materials in one mesh" {
 }
 
 test "triangle obj exported from blender" {
-    const data = @embedFile("../triangle.obj");
+    const data = @embedFile("../examples/triangle.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -510,7 +510,7 @@ test "triangle obj exported from blender" {
 }
 
 test "cube obj exported from blender" {
-    const data = @embedFile("../cube.obj");
+    const data = @embedFile("../examples/cube.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);

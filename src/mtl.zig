@@ -150,7 +150,7 @@ const expectEqualSlices = std.testing.expectEqualSlices;
 const expectEqualStrings = std.testing.expectEqualStrings;
 
 test "single material" {
-    const data = @embedFile("../single.mtl");
+    const data = @embedFile("../examples/single.mtl");
 
     var result = try parse(test_allocator, data);
     defer result.deinit();
