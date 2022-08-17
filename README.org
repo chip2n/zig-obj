@@ -1,5 +1,5 @@
 * zig-obj
-[[https://github.com/chip2n/zig-obj/workflows/CI/badge.svg]]
+[[https://github.com/chip2n/zig-obj/workflows/build/badge.svg]]
 
 Parse ~.obj~ and ~.mtl~ files with Zig.
 
