@@ -1,8 +1,57 @@
 * zig-obj
 [[https://github.com/chip2n/zig-obj/workflows/CI/badge.svg]]
 
-Parse ~.obj~ and ~.mtl~ files with Zig.
+Minimal Zig parser for ~.obj~ and ~.mtl~ files.
 
-Currently only have partial support for each file format (the things I've needed
-for Blender exports so far while doing gamedev). If something is missing, feel
-free to open an issue and/or pull request.
+** Features
+
+The following features are implemented:
+
+OBJ files:
+- [X] Vertices
+- [X] Texture coordinates
+- [X] Normals
+- [X] Objects
+
+MTL files:
+- [X] Bump map
+- [X] Diffuse map
+- [X] Specular map
+- [X] Ambient color
+- [X] Diffuse color
+- [X] Specular color
+- [X] Specular highlight
+- [X] Emissive coefficient
+- [X] Optical density
+- [X] Dissolve
+- [X] Illumination
+
+If something is missing or not working properly, feel free to open an issue/pull
+request and I'll take a look.
+
+** Usage
+
+#+begin_src zig
+const obj = @import("zig-obj")
+
+const model = try obj.parseObj("/path/to/model.obj");
+const material = try obj.parseMtl("/path/to/material.mtl");
+#+end_src
+
+** Building
+
+Build a static library by running:
+
+#+begin_src bash
+zig build
+#+end_src
+
+** Running tests
+
+Tests are being ran automatically each day using the nightly Zig build.
+
+Run the test suite manually with:
+
+#+begin_src bash
+zig build test
+#+end_src
