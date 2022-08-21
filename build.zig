@@ -11,6 +11,9 @@ pub fn build(b: *Builder) void {
     var main_tests = b.addTest("src/main.zig");
     main_tests.setBuildMode(mode);
 
+    // Set package path to root directory to allow access to examples/ dir
+    main_tests.main_pkg_path = ".";
+
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&main_tests.step);
 }
