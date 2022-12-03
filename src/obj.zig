@@ -189,9 +189,9 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
 
                     try meshes.append(.{
                         .name = if (name) |n| try allocator.dupe(u8, n) else null,
-                        .num_vertices = num_verts.toOwnedSlice(),
-                        .indices = indices.toOwnedSlice(),
-                        .materials = mesh_materials.toOwnedSlice(),
+                        .num_vertices = try num_verts.toOwnedSlice(),
+                        .indices = try indices.toOwnedSlice(),
+                        .materials = try mesh_materials.toOwnedSlice(),
                     });
                 }
 
@@ -232,18 +232,18 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     if (num_verts.items.len > 0) {
         try meshes.append(Mesh{
             .name = if (name) |n| try allocator.dupe(u8, n) else null,
-            .num_vertices = num_verts.toOwnedSlice(),
-            .indices = indices.toOwnedSlice(),
-            .materials = mesh_materials.toOwnedSlice(),
+            .num_vertices = try num_verts.toOwnedSlice(),
+            .indices = try indices.toOwnedSlice(),
+            .materials = try mesh_materials.toOwnedSlice(),
         });
     }
 
     return ObjData{
-        .material_libs = material_libs.toOwnedSlice(),
-        .vertices = vertices.toOwnedSlice(),
-        .tex_coords = tex_coords.toOwnedSlice(),
-        .normals = normals.toOwnedSlice(),
-        .meshes = meshes.toOwnedSlice(),
+        .material_libs = try material_libs.toOwnedSlice(),
+        .vertices = try vertices.toOwnedSlice(),
+        .tex_coords = try tex_coords.toOwnedSlice(),
+        .normals = try normals.toOwnedSlice(),
+        .meshes = try meshes.toOwnedSlice(),
     };
 }
 
