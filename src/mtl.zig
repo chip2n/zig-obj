@@ -46,7 +46,7 @@ const Keyword = enum {
 pub fn parse(allocator: std.mem.Allocator, data: []const u8) !MaterialData {
     var materials = std.StringHashMap(Material).init(allocator);
 
-    var lines = std.mem.tokenize(u8, data, "\n");
+    var lines = std.mem.tokenize(u8, data, "\r\n");
     var current_material = Material{};
     var name: ?[]const u8 = null;
 
@@ -167,4 +167,18 @@ test "single material" {
     try expectEqualStrings(material.bump_map_path.?, "/path/to/bump.png");
     try expectEqualStrings(material.diffuse_map_path.?, "/path/to/diffuse.png");
     try expectEqualStrings(material.specular_map_path.?, "/path/to/specular.png");
+}
+
+test "windows line endings" {
+    const data = @embedFile("../examples/triangle_windows.mtl");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit();
+
+    const material = result.materials.get("None").?;
+    try expectEqualSlices(f32, &material.ambient_color.?, &.{ 0.8, 0.8, 0.8 });
+    try expectEqualSlices(f32, &material.diffuse_color.?, &.{ 0.8, 0.8, 0.8 });
+    try expectEqualSlices(f32, &material.specular_color.?, &.{ 0.8, 0.8, 0.8 });
+    try expectEqual(material.dissolve.?, 1.0);
+    try expectEqual(material.illumination.?, 2);
 }

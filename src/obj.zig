@@ -143,7 +143,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     errdefer mesh_materials.deinit();
     var num_processed_verts: usize = 0;
 
-    var lines = tokenize(u8, data, "\n");
+    var lines = tokenize(u8, data, "\r\n");
     while (lines.next()) |line| {
         var iter = tokenize(u8, line, " ");
         const def_type = try parseType(iter.next().?);
@@ -472,6 +472,51 @@ test "triangle obj exported from blender" {
 
     const expected = ObjData{
         .material_libs = &[_][]const u8{"triangle.mtl"},
+        .vertices = &[_]f32{
+            -1.0, 0.0, 0.0,
+            1.0,  0.0, 1.0,
+            1.0,  0.0, -1.0,
+        },
+        .tex_coords = &[_]f32{
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+        },
+        .normals = &[_]f32{ 0.0, 1.0, 0.0 },
+        .meshes = &[_]Mesh{
+            Mesh{
+                .name = "Plane",
+                .num_vertices = &[_]u32{3},
+                .indices = &[_]Mesh.Index{
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    .{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+                    .{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+                },
+                .materials = &[_]MeshMaterial{
+                    .{ .material = "None", .start_index = 0, .end_index = 3 },
+                },
+            },
+        },
+    };
+    try expect(result.material_libs.len == 1);
+    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
+
+    try expectEqualSlices(f32, result.vertices, expected.vertices);
+    try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
+    try expectEqualSlices(f32, result.normals, expected.normals);
+
+    try expect(result.meshes.len == 1);
+    try expect(result.meshes[0].eq(expected.meshes[0]));
+}
+
+test "triangle obj exported from blender (windows line endings)" {
+    const data = @embedFile("../examples/triangle_windows.obj");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    const expected = ObjData{
+        .material_libs = &[_][]const u8{"triangle_windows.mtl"},
         .vertices = &[_]f32{
             -1.0, 0.0, 0.0,
             1.0,  0.0, 1.0,
