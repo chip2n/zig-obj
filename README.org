@@ -29,21 +29,33 @@ MTL files:
 If something is missing or not working properly, feel free to open an issue/pull
 request and I'll take a look.
 
-** Usage
-
-#+begin_src zig
-const obj = @import("zig-obj")
-
-const model = try obj.parseObj("/path/to/model.obj");
-const material = try obj.parseMtl("/path/to/material.mtl");
-#+end_src
-
 ** Building
 
-Build a static library by running:
+Copy repo to ~libs/zig-obj~ inside your Zig project, then add the following to
+your ~build.zig~:
+
+#+begin_src zig
+const obj = @import("libs/zig-obj/build.zig");
+
+pub fn build(b: *std.build.Builder) void {
+    ...
+    exe.addPackage(obj.pkg);
+}
+#+end_src
+
+Alternatively, build a static library by running:
 
 #+begin_src bash
 zig build
+#+end_src
+
+** Usage
+
+#+begin_src zig
+const obj = @import("zig-obj");
+
+const model = try obj.parseObj(allocator, @embedFile("cube.obj"));
+const material = try obj.parseMtl(allocator, @embedFile("cube.mtl"));
 #+end_src
 
 ** Running tests
