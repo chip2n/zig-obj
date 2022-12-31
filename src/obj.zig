@@ -16,7 +16,7 @@ pub const ObjData = struct {
 
     meshes: []const Mesh,
 
-    pub fn deinit(self: ObjData, allocator: Allocator) void {
+    pub fn deinit(self: *@This(), allocator: Allocator) void {
         allocator.free(self.material_libs);
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
@@ -303,7 +303,7 @@ test "unknown def" {
 }
 
 test "comment" {
-    const result = try parse(test_allocator, "# this is a comment");
+    var result = try parse(test_allocator, "# this is a comment");
     defer result.deinit(test_allocator);
 
     try expect(result.vertices.len == 0);
