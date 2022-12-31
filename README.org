@@ -54,9 +54,9 @@ zig build
 #+begin_src zig
 const obj = @import("zig-obj");
 
-const model = try obj.parseObj(allocator, @embedFile("cube.obj"));
+var model = try obj.parseObj(allocator, @embedFile("cube.obj"));
 defer model.deinit(allocator);
-const material = try obj.parseMtl(allocator, @embedFile("cube.mtl"));
+var material = try obj.parseMtl(allocator, @embedFile("cube.mtl"));
 defer material.deinit(allocator);
 #+end_src
 
