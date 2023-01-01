@@ -69,6 +69,8 @@ pub const Mesh = struct {
     };
 
     name: ?[]const u8,
+
+    // Number of vertices for each face
     num_vertices: []const u32,
     indices: []const Mesh.Index,
 
