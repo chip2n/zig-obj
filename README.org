@@ -31,7 +31,7 @@ request and I'll take a look.
 
 ** Getting started
 
-Add module to your projects `build.zig.zon` file (replacing `<COMMIT>` with the
+Add module to your projects ~build.zig.zon~ file (replacing ~<COMMIT>~ with the
 commit you want to use):
 
 #+begin_src zig
@@ -46,7 +46,7 @@ commit you want to use):
 }
 #+end_src
 
-Run `zig build` once, get the hash and add it to `build.zig.zon`:
+Run ~zig build~ once, get the hash and add it to ~build.zig.zon~:
 
 #+begin_src zig
 .{
@@ -61,7 +61,7 @@ Run `zig build` once, get the hash and add it to `build.zig.zon`:
 }
 #+end_src
 
-Add the dependency to your executable in `build.zig`:
+Add the dependency to your executable in ~build.zig~:
 
 #+begin_src zig
 pub fn build(b: *std.build.Builder) void {
