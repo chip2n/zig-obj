@@ -91,10 +91,10 @@ pub const Mesh = struct {
         if (!eqlZ(u8, self.name, other.name)) return false;
         if (self.indices.len != other.indices.len) return false;
         if (!std.mem.eql(u32, self.num_vertices, other.num_vertices)) return false;
-        for (self.indices) |index, i| {
+        for (self.indices, 0..) |index, i| {
             if (!index.eq(other.indices[i])) return false;
         }
-        for (self.materials) |mat, i| {
+        for (self.materials, 0..) |mat, i| {
             if (!mat.eq(other.materials[i])) return false;
         }
         return true;
@@ -447,7 +447,7 @@ test "multiple materials in one mesh" {
 
     const expected = Mesh{
         .name = null,
-        .num_vertices = &[_]u32{3, 3},
+        .num_vertices = &[_]u32{ 3, 3 },
         .indices = &[_]Mesh.Index{
             .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
             .{ .vertex = 4, .tex_coord = 1, .normal = 0 },
