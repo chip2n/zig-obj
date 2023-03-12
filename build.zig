@@ -2,15 +2,14 @@ const std = @import("std");
 const Builder = std.build.Builder;
 const Mode = std.builtin.Mode;
 
-
 pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    _ = b.addModule(.{
-        .name = "obj",
-        .source_file = .{ .path = "src/main.zig" },
-    });
+    _ = b.addModule(
+        "obj",
+        .{ .source_file = .{ .path = "src/main.zig" } },
+    );
 
     const lib = b.addStaticLibrary(.{
         .name = "zig-obj",
