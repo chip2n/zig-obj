@@ -99,7 +99,9 @@ pub fn parse(allocator: std.mem.Allocator, data: []const u8) !MaterialData {
         }
     }
 
-    try materials.put(allocator, name.?, current_material);
+    if (name) |n| {
+        try materials.put(allocator, n, current_material);
+    }
 
     return MaterialData{ .materials = materials };
 }
@@ -181,4 +183,13 @@ test "windows line endings" {
     try expectEqualSlices(f32, &material.specular_color.?, &.{ 0.8, 0.8, 0.8 });
     try expectEqual(material.dissolve.?, 1.0);
     try expectEqual(material.illumination.?, 2);
+}
+
+test "empty mtl" {
+    const data = @embedFile("../examples/empty.mtl");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    try expectEqual(result.materials.size, 0);
 }
