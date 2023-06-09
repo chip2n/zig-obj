@@ -106,7 +106,7 @@ pub fn parse(allocator: std.mem.Allocator, data: []const u8) !MaterialData {
     return MaterialData{ .materials = materials };
 }
 
-fn parseVec3(iter: *std.mem.TokenIterator(u8)) ![3]f32 {
+fn parseVec3(iter: *std.mem.TokenIterator(u8, .any)) ![3]f32 {
     const x = try parseFloat(f32, iter.next().?);
     const y = try parseFloat(f32, iter.next().?);
     const z = try parseFloat(f32, iter.next().?);
