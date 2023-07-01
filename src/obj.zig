@@ -255,9 +255,9 @@ fn parseOptionalIndex(v: []const u8, indices: []f32) !?u32 {
 
     if (i < 0) {
         // index is relative to end of indices list, -1 meaning the last element
-        return @intCast(u32, @intCast(i32, indices.len) + i);
+        return @as(u32, @intCast(@as(i32, @intCast(indices.len)) + i));
     } else {
-        return @intCast(u32, i) - 1;
+        return @as(u32, @intCast(i)) - 1;
     }
 }
 
