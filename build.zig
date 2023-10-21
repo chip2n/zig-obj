@@ -25,8 +25,8 @@ pub fn build(b: *Builder) void {
         .optimize = optimize,
     });
 
-    // Set package path to root directory to allow access to examples/ dir
-    main_tests.main_pkg_path = .{ .path = "." };
+    // Set module path to root directory to allow access to examples/ dir
+    main_tests.main_mod_path = .{ .path = "." };
 
     const run_main_tests = b.addRunArtifact(main_tests);
     const test_step = b.step("test", "Run library tests");
