@@ -4,6 +4,7 @@ const obj = @import("obj.zig");
 const mtl = @import("mtl.zig");
 
 pub const parseObj = obj.parse;
+pub const parseObjCustom = obj.parseCustom;
 pub const ObjData = obj.ObjData;
 pub const Mesh = obj.Mesh;
 
