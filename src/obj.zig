@@ -379,6 +379,7 @@ const test_allocator = std.testing.allocator;
 
 const expect = std.testing.expect;
 const expectError = std.testing.expectError;
+const expectEqual = std.testing.expectEqual;
 const expectEqualSlices = std.testing.expectEqualSlices;
 const expectEqualStrings = std.testing.expectEqualStrings;
 
@@ -390,60 +391,60 @@ test "comment" {
     var result = try parse(test_allocator, "# this is a comment");
     defer result.deinit(test_allocator);
 
-    try expect(result.vertices.len == 0);
-    try expect(result.tex_coords.len == 0);
-    try expect(result.normals.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqual(0, result.vertices.len);
+    try expectEqual(0, result.tex_coords.len);
+    try expectEqual(0, result.normals.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single vertex def xyz" {
     var result = try parse(test_allocator, "v 0.123 0.234 0.345");
     defer result.deinit(test_allocator);
 
-    try expect(std.mem.eql(f32, result.vertices, &[_]f32{ 0.123, 0.234, 0.345 }));
-    try expect(result.tex_coords.len == 0);
-    try expect(result.normals.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqualSlices(f32, &.{ 0.123, 0.234, 0.345 }, result.vertices);
+    try expectEqual(0, result.tex_coords.len);
+    try expectEqual(0, result.normals.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single vertex def xyzw" {
     var result = try parse(test_allocator, "v 0.123 0.234 0.345 0.456");
     defer result.deinit(test_allocator);
 
-    try expect(std.mem.eql(f32, result.vertices, &[_]f32{ 0.123, 0.234, 0.345 }));
-    try expect(result.tex_coords.len == 0);
-    try expect(result.normals.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqualSlices(f32, &.{ 0.123, 0.234, 0.345 }, result.vertices);
+    try expectEqual(0, result.tex_coords.len);
+    try expectEqual(0, result.normals.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single tex coord def uv" {
     var result = try parse(test_allocator, "vt 0.123 0.234");
     defer result.deinit(test_allocator);
 
-    try expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.123, 0.234 }));
-    try expect(result.vertices.len == 0);
-    try expect(result.normals.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqualSlices(f32, &.{ 0.123, 0.234 }, result.tex_coords);
+    try expectEqual(0, result.vertices.len);
+    try expectEqual(0, result.normals.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single tex coord def uvw" {
     var result = try parse(test_allocator, "vt 0.123 0.234 0.345");
     defer result.deinit(test_allocator);
 
-    try expect(std.mem.eql(f32, result.tex_coords, &[_]f32{ 0.123, 0.234 }));
-    try expect(result.vertices.len == 0);
-    try expect(result.normals.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqualSlices(f32, &.{ 0.123, 0.234 }, result.tex_coords);
+    try expectEqual(0, result.vertices.len);
+    try expectEqual(0, result.normals.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single normal def xyz" {
     var result = try parse(test_allocator, "vn 0.123 0.234 0.345");
     defer result.deinit(test_allocator);
 
-    try expect(std.mem.eql(f32, result.normals, &[_]f32{ 0.123, 0.234, 0.345 }));
-    try expect(result.vertices.len == 0);
-    try expect(result.tex_coords.len == 0);
-    try expect(result.meshes.len == 0);
+    try expectEqualSlices(f32, &.{ 0.123, 0.234, 0.345 }, result.normals);
+    try expectEqual(0, result.vertices.len);
+    try expectEqual(0, result.tex_coords.len);
+    try expectEqual(0, result.meshes.len);
 }
 
 test "single face def vertex only" {
@@ -460,7 +461,7 @@ test "single face def vertex only" {
         },
         .materials = &[_]MeshMaterial{},
     };
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(mesh));
 }
 
@@ -478,7 +479,7 @@ test "single face def vertex + tex coord" {
         },
         .materials = &[_]MeshMaterial{},
     };
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(mesh));
 }
 
@@ -496,7 +497,7 @@ test "single face def vertex + tex coord + normal" {
         },
         .materials = &[_]MeshMaterial{},
     };
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(mesh));
 }
 
@@ -514,7 +515,7 @@ test "single face def vertex + normal" {
         },
         .materials = &[_]MeshMaterial{},
     };
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(expected));
 }
 
@@ -544,7 +545,7 @@ test "multiple materials in one mesh" {
         },
     };
 
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(expected));
 }
 
@@ -582,14 +583,14 @@ test "triangle obj exported from blender" {
             },
         },
     };
-    try expect(result.material_libs.len == 1);
-    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
+    try expectEqual(1, result.material_libs.len);
+    try expectEqualStrings(expected.material_libs[0], result.material_libs[0]);
 
-    try expectEqualSlices(f32, result.vertices, expected.vertices);
-    try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
-    try expectEqualSlices(f32, result.normals, expected.normals);
+    try expectEqualSlices(f32, expected.vertices, result.vertices);
+    try expectEqualSlices(f32, expected.tex_coords, result.tex_coords);
+    try expectEqualSlices(f32, expected.normals, result.normals);
 
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(expected.meshes[0]));
 }
 
@@ -627,15 +628,78 @@ test "triangle obj exported from blender (windows line endings)" {
             },
         },
     };
-    try expect(result.material_libs.len == 1);
-    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
+    try expectEqual(1, result.material_libs.len);
+    try expectEqualStrings(expected.material_libs[0], result.material_libs[0]);
 
-    try expectEqualSlices(f32, result.vertices, expected.vertices);
-    try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
-    try expectEqualSlices(f32, result.normals, expected.normals);
+    try expectEqualSlices(f32, expected.vertices, result.vertices);
+    try expectEqualSlices(f32, expected.tex_coords, result.tex_coords);
+    try expectEqualSlices(f32, expected.normals, result.normals);
 
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(expected.meshes[0]));
+}
+
+test "triangle obj exported from blender (two triangles)" {
+    const data = @embedFile("../examples/triangle_two.obj");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    const expected = ObjData{
+        .material_libs = &[_][]const u8{"triangle.mtl"},
+        .vertices = &[_]f32{
+            -1.0, 0.0, 0.0,
+            1.0,  0.0, 1.0,
+            1.0,  0.0, -1.0,
+        },
+        .tex_coords = &[_]f32{
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+        },
+        .normals = &[_]f32{ 0.0, 1.0, 0.0 },
+        .meshes = &[_]Mesh{
+            Mesh{
+                .name = "Plane",
+                .num_vertices = &[_]u32{3},
+                .indices = &[_]Mesh.Index{
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    .{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+                    .{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+                },
+                .materials = &[_]MeshMaterial{
+                    .{ .material = "None", .start_index = 0, .end_index = 3 },
+                },
+            },
+            Mesh{
+                .name = "Plane2",
+                .num_vertices = &[_]u32{3},
+                .indices = &[_]Mesh.Index{
+                    .{ .vertex = 0, .tex_coord = 0, .normal = 0 },
+                    .{ .vertex = 1, .tex_coord = 1, .normal = 0 },
+                    .{ .vertex = 2, .tex_coord = 2, .normal = 0 },
+                },
+                .materials = &[_]MeshMaterial{
+                    .{ .material = "None", .start_index = 0, .end_index = 3 },
+                },
+            },
+        },
+    };
+    try expectEqual(1, result.material_libs.len);
+    try expectEqualStrings(expected.material_libs[0], result.material_libs[0]);
+
+    try expectEqualSlices(f32, expected.vertices, result.vertices);
+    try expectEqualSlices(f32, expected.tex_coords, result.tex_coords);
+    try expectEqualSlices(f32, expected.normals, result.normals);
+
+    try expectEqual(2, result.meshes.len);
+    try expect(result.meshes[0].eq(expected.meshes[0]));
+    try expect(result.meshes[1].eq(expected.meshes[1]));
+}
+
+test "triangle obj exported from blender (with error)" {
+    const data = @embedFile("../examples/triangle_error.obj");
+    try expectError(error.UnknownDefType, parse(test_allocator, data));
 }
 
 test "cube obj exported from blender" {
@@ -715,14 +779,14 @@ test "cube obj exported from blender" {
         },
     };
 
-    try expect(result.material_libs.len == 1);
-    try expectEqualStrings(result.material_libs[0], expected.material_libs[0]);
+    try expectEqual(1, result.material_libs.len);
+    try expectEqualStrings(expected.material_libs[0], result.material_libs[0]);
 
-    try expectEqualSlices(f32, result.vertices, expected.vertices);
-    try expectEqualSlices(f32, result.tex_coords, expected.tex_coords);
-    try expectEqualSlices(f32, result.normals, expected.normals);
+    try expectEqualSlices(f32, expected.vertices, result.vertices);
+    try expectEqualSlices(f32, expected.tex_coords, result.tex_coords);
+    try expectEqualSlices(f32, expected.normals, result.normals);
 
-    try expect(result.meshes.len == 1);
+    try expectEqual(1, result.meshes.len);
     try expect(result.meshes[0].eq(expected.meshes[0]));
 }
 
