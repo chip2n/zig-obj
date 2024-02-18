@@ -1,7 +1,7 @@
 const std = @import("std");
-const tokenize = std.mem.tokenize;
-const split = std.mem.split;
-const ArrayList = std.ArrayList;
+const tokenizeAny = std.mem.tokenizeAny;
+const splitAny = std.mem.splitAny;
+const ArrayListUnmanaged = std.ArrayListUnmanaged;
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const parseFloat = std.fmt.parseFloat;
@@ -17,7 +17,9 @@ pub const ObjData = struct {
     meshes: []const Mesh,
 
     pub fn deinit(self: *@This(), allocator: Allocator) void {
+        for (self.material_libs) |mlib| allocator.free(mlib);
         allocator.free(self.material_libs);
+
         allocator.free(self.vertices);
         allocator.free(self.tex_coords);
         allocator.free(self.normals);
@@ -25,6 +27,139 @@ pub const ObjData = struct {
         for (self.meshes) |mesh| mesh.deinit(allocator);
         allocator.free(self.meshes);
     }
+
+    const Builder = struct {
+        allocator: std.mem.Allocator,
+        material_libs: ArrayListUnmanaged([]const u8) = .{},
+        vertices: ArrayListUnmanaged(f32) = .{},
+        tex_coords: ArrayListUnmanaged(f32) = .{},
+        normals: ArrayListUnmanaged(f32) = .{},
+        meshes: ArrayListUnmanaged(Mesh) = .{},
+
+        // current mesh
+        name: ?[]const u8 = null,
+        num_verts: ArrayListUnmanaged(u32) = .{},
+        indices: ArrayListUnmanaged(Mesh.Index) = .{},
+        index_i: u32 = 0,
+
+        // current mesh material
+        current_material: ?MeshMaterial = null,
+        mesh_materials: ArrayListUnmanaged(MeshMaterial) = .{},
+        num_processed_verts: usize = 0,
+
+        fn onError(self: *Builder) void {
+            for (self.material_libs.items) |mlib| self.allocator.free(mlib);
+            for (self.meshes.items) |mesh| mesh.deinit(self.allocator);
+            self.material_libs.deinit(self.allocator);
+            self.vertices.deinit(self.allocator);
+            self.tex_coords.deinit(self.allocator);
+            self.normals.deinit(self.allocator);
+            self.meshes.deinit(self.allocator);
+            if (self.name) |n| self.allocator.free(n);
+            self.num_verts.deinit(self.allocator);
+            self.indices.deinit(self.allocator);
+            if (self.current_material) |mat| self.allocator.free(mat.material);
+            self.mesh_materials.deinit(self.allocator);
+        }
+
+        fn finish(self: *Builder) !ObjData {
+            defer self.* = undefined;
+            try self.use_material(null); // add last material if any
+            try self.object(null); // add last mesh (as long as it is not empty)
+            return ObjData{
+                .material_libs = try self.material_libs.toOwnedSlice(self.allocator),
+                .vertices = try self.vertices.toOwnedSlice(self.allocator),
+                .tex_coords = try self.tex_coords.toOwnedSlice(self.allocator),
+                .normals = try self.normals.toOwnedSlice(self.allocator),
+                .meshes = try self.meshes.toOwnedSlice(self.allocator),
+            };
+        }
+
+        fn vertex(self: *Builder, x: f32, y: f32, z: f32, w: ?f32) !void {
+            _ = w;
+            try self.vertices.appendSlice(self.allocator, &.{ x, y, z });
+        }
+
+        fn tex_coord(self: *Builder, u: f32, v: ?f32, w: ?f32) !void {
+            _ = w;
+            try self.tex_coords.appendSlice(self.allocator, &.{ u, v.? });
+        }
+
+        fn normal(self: *Builder, i: f32, j: f32, k: f32) !void {
+            try self.normals.appendSlice(self.allocator, &.{ i, j, k });
+        }
+
+        fn face_index(self: *Builder, vert: u32, tex: ?u32, norm: ?u32) !void {
+            try self.indices.append(
+                self.allocator,
+                .{ .vertex = vert, .tex_coord = tex, .normal = norm },
+            );
+            self.index_i += 1;
+        }
+
+        fn face_end(self: *Builder) !void {
+            try self.num_verts.append(self.allocator, self.index_i);
+            self.num_processed_verts += self.index_i;
+            self.index_i = 0;
+        }
+
+        fn object(self: *Builder, name: ?[]const u8) !void {
+            if (0 < self.num_verts.items.len) {
+                if (self.current_material) |*m| {
+                    m.end_index = self.num_processed_verts;
+                    try self.mesh_materials.append(self.allocator, m.*);
+                }
+                try self.meshes.append(self.allocator, .{
+                    .name = self.name,
+                    .num_vertices = try self.num_verts.toOwnedSlice(self.allocator),
+                    .indices = try self.indices.toOwnedSlice(self.allocator),
+                    .materials = try self.mesh_materials.toOwnedSlice(self.allocator),
+                });
+            }
+            if (name) |n| {
+                self.name = try self.allocator.dupe(u8, n);
+                self.num_verts = .{};
+                self.indices = .{};
+                self.num_processed_verts = 0;
+                self.current_material = null;
+            }
+        }
+
+        fn use_material(self: *Builder, name: ?[]const u8) !void {
+            if (self.current_material) |*m| {
+                m.end_index = self.num_processed_verts;
+                try self.mesh_materials.append(self.allocator, m.*);
+            }
+            if (name) |n| {
+                self.current_material = MeshMaterial{
+                    .material = try self.allocator.dupe(u8, n),
+                    .start_index = self.num_processed_verts,
+                    .end_index = self.num_processed_verts + 1,
+                };
+            } else {
+                self.current_material = null;
+            }
+        }
+
+        fn material_lib(self: *Builder, name: []const u8) !void {
+            try self.material_libs.append(
+                self.allocator,
+                try self.allocator.dupe(u8, name),
+            );
+        }
+
+        fn vertexCount(self: Builder) usize {
+            return self.vertices.items.len;
+        }
+
+        fn texCoordCount(self: Builder) usize {
+            return self.tex_coords.items.len;
+        }
+
+        fn normalCount(self: Builder) usize {
+            return self.normals.items.len;
+        }
+    };
 };
 
 fn compareOpt(a: ?u32, b: ?u32) bool {
@@ -117,147 +252,93 @@ const DefType = enum {
 };
 
 pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
-    var material_libs = ArrayList([]const u8).init(allocator);
-    errdefer material_libs.deinit();
+    var b = ObjData.Builder{ .allocator = allocator };
+    errdefer b.onError();
+    var fbs = std.io.fixedBufferStream(data);
+    return try parseCustom(ObjData, &b, fbs.reader());
+}
 
-    var vertices = ArrayList(f32).init(allocator);
-    errdefer vertices.deinit();
-
-    var tex_coords = ArrayList(f32).init(allocator);
-    errdefer tex_coords.deinit();
-
-    var normals = ArrayList(f32).init(allocator);
-    errdefer normals.deinit();
-
-    var meshes = ArrayList(Mesh).init(allocator);
-    errdefer meshes.deinit();
-
-    // current mesh
-    var name: ?[]const u8 = null;
-    var num_verts = ArrayList(u32).init(allocator);
-    errdefer num_verts.deinit();
-    var indices = ArrayList(Mesh.Index).init(allocator);
-    errdefer indices.deinit();
-
-    // current mesh material
-    var current_material: ?MeshMaterial = null;
-    errdefer if (current_material) |mat| allocator.free(mat.material);
-    var mesh_materials = ArrayList(MeshMaterial).init(allocator);
-    errdefer mesh_materials.deinit();
-    var num_processed_verts: usize = 0;
-
-    var lines = tokenize(u8, data, "\r\n");
-    while (lines.next()) |line| {
-        var iter = tokenize(u8, line, " ");
-        const def_type = try parseType(iter.next().?);
+pub fn parseCustom(comptime T: type, b: *T.Builder, rdr: anytype) !T {
+    var buffer: [128]u8 = undefined;
+    var lines = lineIterator(rdr, &buffer);
+    while (try lines.next()) |line| {
+        var iter = tokenizeAny(u8, line, " ");
+        const def_type =
+            if (iter.next()) |tok| try parseType(tok) else continue;
         switch (def_type) {
-            .vertex => {
-                try vertices.append(try parseFloat(f32, iter.next().?));
-                try vertices.append(try parseFloat(f32, iter.next().?));
-                try vertices.append(try parseFloat(f32, iter.next().?));
-            },
-            .tex_coord => {
-                try tex_coords.append(try parseFloat(f32, iter.next().?));
-                try tex_coords.append(try parseFloat(f32, iter.next().?));
-            },
-            .normal => {
-                try normals.append(try parseFloat(f32, iter.next().?));
-                try normals.append(try parseFloat(f32, iter.next().?));
-                try normals.append(try parseFloat(f32, iter.next().?));
-            },
+            .vertex => try b.vertex(
+                try parseFloat(f32, iter.next().?),
+                try parseFloat(f32, iter.next().?),
+                try parseFloat(f32, iter.next().?),
+                if (iter.next()) |w| (try parseFloat(f32, w)) else null,
+            ),
+            .tex_coord => try b.tex_coord(
+                try parseFloat(f32, iter.next().?),
+                if (iter.next()) |v| (try parseFloat(f32, v)) else null,
+                if (iter.next()) |w| (try parseFloat(f32, w)) else null,
+            ),
+            .normal => try b.normal(
+                try parseFloat(f32, iter.next().?),
+                try parseFloat(f32, iter.next().?),
+                try parseFloat(f32, iter.next().?),
+            ),
             .face => {
-                var i: u32 = 0;
                 while (iter.next()) |entry| {
-                    var entry_iter = split(u8, entry, "/");
-                    // TODO support x//y and similar
-                    // NOTE obj is one-indexed - let's make it zero-indexed
-                    try indices.append(.{
-                        .vertex = if (entry_iter.next()) |e| (try parseOptionalIndex(e, vertices.items)) else null,
-                        .tex_coord = if (entry_iter.next()) |e| (try parseOptionalIndex(e, tex_coords.items)) else null,
-                        .normal = if (entry_iter.next()) |e| (try parseOptionalIndex(e, normals.items)) else null,
-                    });
-
-                    i += 1;
+                    var entry_iter = splitAny(u8, entry, "/");
+                    try b.face_index(
+                        (try parseOptionalIndex(entry_iter.next().?, b.vertexCount())).?,
+                        if (entry_iter.next()) |e| (try parseOptionalIndex(e, b.texCoordCount())) else null,
+                        if (entry_iter.next()) |e| (try parseOptionalIndex(e, b.normalCount())) else null,
+                    );
                 }
-                try num_verts.append(i);
-                num_processed_verts += i;
+                try b.face_end();
             },
-            .object => {
-                if (num_verts.items.len > 0) {
-                    // add last material if any
-                    if (current_material) |*m| {
-                        m.end_index = num_processed_verts;
-                        try mesh_materials.append(m.*);
-                    }
-
-                    try meshes.append(.{
-                        .name = if (name) |n| try allocator.dupe(u8, n) else null,
-                        .num_vertices = try num_verts.toOwnedSlice(),
-                        .indices = try indices.toOwnedSlice(),
-                        .materials = try mesh_materials.toOwnedSlice(),
-                    });
-                }
-
-                name = iter.next().?;
-                num_verts = ArrayList(u32).init(allocator);
-                errdefer num_verts.deinit();
-                indices = ArrayList(Mesh.Index).init(allocator);
-                errdefer indices.deinit();
-                num_processed_verts = 0;
-                current_material = null;
-            },
-            .use_material => {
-                if (current_material) |*m| {
-                    m.end_index = num_processed_verts;
-                    try mesh_materials.append(m.*);
-                }
-                const material = try allocator.dupe(u8, iter.next().?);
-                current_material = MeshMaterial{
-                    .material = material,
-                    .start_index = num_processed_verts,
-                    .end_index = num_processed_verts + 1,
-                };
-            },
-            .material_lib => {
-                try material_libs.append(iter.next().?);
-            },
+            .object => try b.object(iter.next().?),
+            .use_material => try b.use_material(iter.next().?),
+            .material_lib => while (iter.next()) |lib| try b.material_lib(lib),
             else => {},
         }
     }
 
-    // add last material if any
-    if (current_material) |*m| {
-        m.end_index = num_processed_verts;
-        try mesh_materials.append(m.*);
-    }
+    return try b.finish();
+}
 
-    // add last mesh (as long as it is not empty)
-    if (num_verts.items.len > 0) {
-        try meshes.append(Mesh{
-            .name = if (name) |n| try allocator.dupe(u8, n) else null,
-            .num_vertices = try num_verts.toOwnedSlice(),
-            .indices = try indices.toOwnedSlice(),
-            .materials = try mesh_materials.toOwnedSlice(),
-        });
-    }
+fn LineIterator(comptime Reader: type) type {
+    return struct {
+        buffer: []u8,
+        reader: Reader,
 
-    return ObjData{
-        .material_libs = try material_libs.toOwnedSlice(),
-        .vertices = try vertices.toOwnedSlice(),
-        .tex_coords = try tex_coords.toOwnedSlice(),
-        .normals = try normals.toOwnedSlice(),
-        .meshes = try meshes.toOwnedSlice(),
+        fn next(self: *@This()) !?[]const u8 {
+            var fbs = std.io.fixedBufferStream(self.buffer);
+            self.reader.streamUntilDelimiter(
+                fbs.writer(),
+                '\n',
+                fbs.buffer.len,
+            ) catch |err| switch (err) {
+                error.EndOfStream => if (fbs.getWritten().len == 0) return null,
+                else => |e| return e,
+            };
+            var line = fbs.getWritten();
+            if (0 < line.len and line[line.len - 1] == '\r')
+                line = line[0 .. line.len - 1];
+            return line;
+        }
     };
 }
 
-fn parseOptionalIndex(v: []const u8, indices: []f32) !?u32 {
+fn lineIterator(rdr: anytype, buffer: []u8) LineIterator(@TypeOf(rdr)) {
+    return .{ .buffer = buffer, .reader = rdr };
+}
+
+fn parseOptionalIndex(v: []const u8, n_items: usize) !?u32 {
     if (std.mem.eql(u8, v, "")) return null;
     const i = try parseInt(i32, v, 10);
 
     if (i < 0) {
         // index is relative to end of indices list, -1 meaning the last element
-        return @as(u32, @intCast(@as(i32, @intCast(indices.len)) + i));
+        return @as(u32, @intCast(@as(i32, @intCast(n_items)) + i));
     } else {
+        // obj is one-indexed - let's make it zero-indexed
         return @as(u32, @intCast(i)) - 1;
     }
 }
