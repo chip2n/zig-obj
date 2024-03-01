@@ -7,6 +7,8 @@ const assert = std.debug.assert;
 const parseFloat = std.fmt.parseFloat;
 const parseInt = std.fmt.parseInt;
 
+const lineIterator = @import("utils.zig").lineIterator;
+
 pub const ObjData = struct {
     material_libs: []const []const u8,
 
@@ -29,7 +31,7 @@ pub const ObjData = struct {
     }
 
     const Builder = struct {
-        allocator: std.mem.Allocator,
+        allocator: Allocator,
         material_libs: ArrayListUnmanaged([]const u8) = .{},
         vertices: ArrayListUnmanaged(f32) = .{},
         tex_coords: ArrayListUnmanaged(f32) = .{},
@@ -258,9 +260,9 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     return try parseCustom(ObjData, &b, fbs.reader());
 }
 
-pub fn parseCustom(comptime T: type, b: *T.Builder, rdr: anytype) !T {
+pub fn parseCustom(comptime T: type, b: *T.Builder, reader: anytype) !T {
     var buffer: [128]u8 = undefined;
-    var lines = lineIterator(rdr, &buffer);
+    var lines = lineIterator(reader, &buffer);
     while (try lines.next()) |line| {
         var iter = tokenizeAny(u8, line, " ");
         const def_type =
@@ -301,33 +303,6 @@ pub fn parseCustom(comptime T: type, b: *T.Builder, rdr: anytype) !T {
     }
 
     return try b.finish();
-}
-
-fn LineIterator(comptime Reader: type) type {
-    return struct {
-        buffer: []u8,
-        reader: Reader,
-
-        fn next(self: *@This()) !?[]const u8 {
-            var fbs = std.io.fixedBufferStream(self.buffer);
-            self.reader.streamUntilDelimiter(
-                fbs.writer(),
-                '\n',
-                fbs.buffer.len,
-            ) catch |err| switch (err) {
-                error.EndOfStream => if (fbs.getWritten().len == 0) return null,
-                else => |e| return e,
-            };
-            var line = fbs.getWritten();
-            if (0 < line.len and line[line.len - 1] == '\r')
-                line = line[0 .. line.len - 1];
-            return line;
-        }
-    };
-}
-
-fn lineIterator(rdr: anytype, buffer: []u8) LineIterator(@TypeOf(rdr)) {
-    return .{ .buffer = buffer, .reader = rdr };
 }
 
 fn parseOptionalIndex(v: []const u8, n_items: usize) !?u32 {

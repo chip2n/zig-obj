@@ -9,6 +9,7 @@ pub const ObjData = obj.ObjData;
 pub const Mesh = obj.Mesh;
 
 pub const parseMtl = mtl.parse;
+pub const parseMtlCustom = mtl.parseCustom;
 pub const MaterialData = mtl.MaterialData;
 pub const Material = mtl.Material;
 
