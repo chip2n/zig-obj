@@ -7,19 +7,19 @@ pub fn build(b: *std.Build) void {
 
     _ = b.addModule(
         "obj",
-        .{ .root_source_file = .{ .path = "src/main.zig" } },
+        .{ .root_source_file = b.path("src/main.zig") },
     );
 
     const lib = b.addStaticLibrary(.{
         .name = "zig-obj",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
     b.installArtifact(lib);
 
     const main_tests = b.addTest(.{
-        .root_source_file = .{ .path = "test.zig" },
+        .root_source_file = b.path("test.zig"),
         .target = target,
         .optimize = optimize,
     });
