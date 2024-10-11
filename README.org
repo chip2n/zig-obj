@@ -32,7 +32,7 @@ request and I'll take a look.
 ** Getting started
 
 Add module to your projects ~build.zig.zon~ file (replacing ~<COMMIT>~ with the
-commit you want to use):
+commit you want to use and ~<HASH>~ with the associated hash):
 
 #+begin_src zig
 .{
@@ -40,21 +40,7 @@ commit you want to use):
     .version = "1.0.0",
     .dependencies = .{
         .obj = .{
-            .url = "https://github.com/chip2n/zig-obj/archive/<COMMIT>.tar.gz",
-        },
-    },
-}
-#+end_src
-
-Run ~zig build~ once, get the hash and add it to ~build.zig.zon~:
-
-#+begin_src zig
-.{
-    .name = "my-project",
-    .version = "1.0.0",
-    .dependencies = .{
-        .obj = .{
-            .url = "https://github.com/chip2n/zig-obj/archive/<COMMIT>.tar.gz",
+            .url = "git+https://github.com/chip2n/zig-obj.git#<COMMIT>",
             .hash = "<HASH>",
         },
     },
