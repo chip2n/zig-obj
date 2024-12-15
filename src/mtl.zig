@@ -158,6 +158,12 @@ pub const Material = struct {
         if (self.bump_map_path) |p| allocator.free(p);
         if (self.diffuse_map_path) |p| allocator.free(p);
         if (self.specular_map_path) |p| allocator.free(p);
+        if (self.ambient_map_path) |p| allocator.free(p);
+        if (self.roughness_map_path) |p| allocator.free(p);
+        if (self.metallic_map_path) |p| allocator.free(p);
+        if (self.sheen_map_path) |p| allocator.free(p);
+        if (self.emissive_map_path) |p| allocator.free(p);
+        if (self.normal_map_path) |p| allocator.free(p);
     }
 };
 
