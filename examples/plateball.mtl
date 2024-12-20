@@ -1,0 +1,18 @@
+# Blender 4.3.1 MTL File: 'None'
+# www.blender.org
+
+newmtl Material.001
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Kd metal_plate_diff_1k.jpg
+map_Pm metal_plate_rough_1k.jpg
+map_Pr metal_plate_metal_1k.jpg
+map_Bump -bm 1.000000 metal_plate_nor_gl_1k.jpg

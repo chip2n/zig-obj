@@ -50,6 +50,14 @@ pub const MaterialData = struct {
             }
             self.current_name = try self.allocator.dupe(u8, name);
         }
+
+        fn dupeTextureMap(self: *Builder, map: TextureMap) !TextureMap {
+            return .{
+                .path = try self.allocator.dupe(u8, map.path),
+                .opts = try self.allocator.dupe(u8, map.opts),
+            };
+        }
+
         fn ambient_color(self: *Builder, rgb: [3]f32) !void {
             self.current_material.ambient_color = rgb;
         }
@@ -95,32 +103,32 @@ pub const MaterialData = struct {
         fn anisotropy_rotation(self: *Builder, v: f32) !void {
             self.current_material.anisotropy_rotation = v;
         }
-        fn ambient_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.ambient_map_path = try self.allocator.dupe(u8, path);
+        fn ambient_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.ambient_map = try self.dupeTextureMap(map);
         }
-        fn diffuse_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.diffuse_map_path = try self.allocator.dupe(u8, path);
+        fn diffuse_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.diffuse_map = try self.dupeTextureMap(map);
         }
-        fn specular_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.specular_map_path = try self.allocator.dupe(u8, path);
+        fn specular_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.specular_map = try self.dupeTextureMap(map);
         }
-        fn bump_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.bump_map_path = try self.allocator.dupe(u8, path);
+        fn bump_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.bump_map = try self.dupeTextureMap(map);
         }
-        fn roughness_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.roughness_map_path = try self.allocator.dupe(u8, path);
+        fn roughness_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.roughness_map = try self.dupeTextureMap(map);
         }
-        fn metallic_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.metallic_map_path = try self.allocator.dupe(u8, path);
+        fn metallic_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.metallic_map = try self.dupeTextureMap(map);
         }
-        fn sheen_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.sheen_map_path = try self.allocator.dupe(u8, path);
+        fn sheen_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.sheen_map = try self.dupeTextureMap(map);
         }
-        fn emissive_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.emissive_map_path = try self.allocator.dupe(u8, path);
+        fn emissive_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.emissive_map = try self.dupeTextureMap(map);
         }
-        fn normal_map_path(self: *Builder, path: []const u8) !void {
-            self.current_material.normal_map_path = try self.allocator.dupe(u8, path);
+        fn normal_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.normal_map = try self.dupeTextureMap(map);
         }
     };
 };
@@ -144,26 +152,31 @@ pub const Material = struct {
     anisotropy: ?f32 = null,
     anisotropy_rotation: ?f32 = null,
 
-    ambient_map_path: ?[]const u8 = null,
-    diffuse_map_path: ?[]const u8 = null,
-    specular_map_path: ?[]const u8 = null,
-    bump_map_path: ?[]const u8 = null,
-    roughness_map_path: ?[]const u8 = null,
-    metallic_map_path: ?[]const u8 = null,
-    sheen_map_path: ?[]const u8 = null,
-    emissive_map_path: ?[]const u8 = null,
-    normal_map_path: ?[]const u8 = null,
+    ambient_map: ?TextureMap = null,
+    diffuse_map: ?TextureMap = null,
+    specular_map: ?TextureMap = null,
+    bump_map: ?TextureMap = null,
+    roughness_map: ?TextureMap = null,
+    metallic_map: ?TextureMap = null,
+    sheen_map: ?TextureMap = null,
+    emissive_map: ?TextureMap = null,
+    normal_map: ?TextureMap = null,
 
     pub fn deinit(self: *Material, allocator: Allocator) void {
-        if (self.bump_map_path) |p| allocator.free(p);
-        if (self.diffuse_map_path) |p| allocator.free(p);
-        if (self.specular_map_path) |p| allocator.free(p);
-        if (self.ambient_map_path) |p| allocator.free(p);
-        if (self.roughness_map_path) |p| allocator.free(p);
-        if (self.metallic_map_path) |p| allocator.free(p);
-        if (self.sheen_map_path) |p| allocator.free(p);
-        if (self.emissive_map_path) |p| allocator.free(p);
-        if (self.normal_map_path) |p| allocator.free(p);
+        if (self.bump_map) |m| freeTextureMap(allocator, m);
+        if (self.diffuse_map) |m| freeTextureMap(allocator, m);
+        if (self.specular_map) |m| freeTextureMap(allocator, m);
+        if (self.ambient_map) |m| freeTextureMap(allocator, m);
+        if (self.roughness_map) |m| freeTextureMap(allocator, m);
+        if (self.metallic_map) |m| freeTextureMap(allocator, m);
+        if (self.sheen_map) |m| freeTextureMap(allocator, m);
+        if (self.emissive_map) |m| freeTextureMap(allocator, m);
+        if (self.normal_map) |m| freeTextureMap(allocator, m);
+    }
+
+    fn freeTextureMap(allocator: Allocator, map: TextureMap) void {
+        allocator.free(map.path);
+        allocator.free(map.opts);
     }
 };
 
@@ -185,16 +198,18 @@ const Keyword = enum {
     clearcoat_roughness,
     anisotropy,
     anisotropy_rotation,
-    ambient_map_path,
-    diffuse_map_path,
-    specular_map_path,
-    bump_map_path,
-    roughness_map_path,
-    metallic_map_path,
-    sheen_map_path,
-    emissive_map_path,
-    normal_map_path,
+    ambient_map,
+    diffuse_map,
+    specular_map,
+    bump_map,
+    roughness_map,
+    metallic_map,
+    sheen_map,
+    emissive_map,
+    normal_map,
 };
+
+const TextureMap = struct { path: []const u8, opts: []const u8 };
 
 pub fn parse(allocator: Allocator, data: []const u8) !MaterialData {
     var b = MaterialData.Builder{ .allocator = allocator };
@@ -228,15 +243,15 @@ pub fn parseCustom(comptime T: type, b: *T.Builder, reader: anytype) !T {
             .clearcoat_roughness => try b.clearcoat_roughness(try parseF32(&iter)),
             .anisotropy => try b.anisotropy(try parseF32(&iter)),
             .anisotropy_rotation => try b.anisotropy_rotation(try parseF32(&iter)),
-            .ambient_map_path => try b.ambient_map_path(iter.next().?),
-            .diffuse_map_path => try b.diffuse_map_path(iter.next().?),
-            .specular_map_path => try b.specular_map_path(iter.next().?),
-            .bump_map_path => try b.bump_map_path(iter.next().?),
-            .roughness_map_path => try b.roughness_map_path(iter.next().?),
-            .metallic_map_path => try b.metallic_map_path(iter.next().?),
-            .sheen_map_path => try b.sheen_map_path(iter.next().?),
-            .emissive_map_path => try b.emissive_map_path(iter.next().?),
-            .normal_map_path => try b.normal_map_path(iter.next().?),
+            .ambient_map => try b.ambient_map(try parseTextureMap(&iter)),
+            .diffuse_map => try b.diffuse_map(try parseTextureMap(&iter)),
+            .specular_map => try b.specular_map(try parseTextureMap(&iter)),
+            .bump_map => try b.bump_map(try parseTextureMap(&iter)),
+            .roughness_map => try b.roughness_map(try parseTextureMap(&iter)),
+            .metallic_map => try b.metallic_map(try parseTextureMap(&iter)),
+            .sheen_map => try b.sheen_map(try parseTextureMap(&iter)),
+            .emissive_map => try b.emissive_map(try parseTextureMap(&iter)),
+            .normal_map => try b.normal_map(try parseTextureMap(&iter)),
         }
     }
     return try b.finish();
@@ -255,6 +270,22 @@ fn parseVec3(iter: *std.mem.TokenIterator(u8, .any)) ![3]f32 {
     const y = try std.fmt.parseFloat(f32, iter.next().?);
     const z = try std.fmt.parseFloat(f32, iter.next().?);
     return [_]f32{ x, y, z };
+}
+
+fn parseTextureMap(iter: *std.mem.TokenIterator(u8, .any)) !TextureMap {
+    const start = iter.index;
+    var end = iter.index;
+    var path: []const u8 = "";
+    while (iter.next()) |s| {
+        if (iter.peek() != null) {
+            end = iter.index;
+        }
+        path = s;
+    }
+    return .{
+        .path = path,
+        .opts = std.mem.trim(u8, iter.buffer[start..end], " "),
+    };
 }
 
 fn parseKeyword(s: []const u8) !Keyword {
@@ -293,23 +324,23 @@ fn parseKeyword(s: []const u8) !Keyword {
     } else if (std.mem.eql(u8, s, "anisor")) {
         return .anisotropy_rotation;
     } else if (std.mem.eql(u8, s, "map_Ka")) {
-        return .ambient_map_path;
+        return .ambient_map;
     } else if (std.mem.eql(u8, s, "map_Kd")) {
-        return .diffuse_map_path;
+        return .diffuse_map;
     } else if (std.mem.eql(u8, s, "map_Ns")) {
-        return .specular_map_path;
+        return .specular_map;
     } else if (std.mem.eql(u8, s, "map_Bump")) {
-        return .bump_map_path;
+        return .bump_map;
     } else if (std.mem.eql(u8, s, "map_Pr")) {
-        return .roughness_map_path;
+        return .roughness_map;
     } else if (std.mem.eql(u8, s, "map_Pm")) {
-        return .metallic_map_path;
+        return .metallic_map;
     } else if (std.mem.eql(u8, s, "map_Ps")) {
-        return .sheen_map_path;
+        return .sheen_map;
     } else if (std.mem.eql(u8, s, "map_Ke")) {
-        return .emissive_map_path;
+        return .emissive_map;
     } else if (std.mem.eql(u8, s, "map_Norm")) {
-        return .normal_map_path;
+        return .normal_map;
     } else {
         std.log.warn("Unknown keyword: {s}", .{s});
         return error.UnknownKeyword;
@@ -336,9 +367,22 @@ test "single material" {
     try expectEqual(material.optical_density.?, 1.45);
     try expectEqual(material.dissolve.?, 1.0);
     try expectEqual(material.illumination.?, 2);
-    try expectEqualStrings(material.bump_map_path.?, "/path/to/bump.png");
-    try expectEqualStrings(material.diffuse_map_path.?, "/path/to/diffuse.png");
-    try expectEqualStrings(material.specular_map_path.?, "/path/to/specular.png");
+    try expectEqualStrings(material.bump_map.?.path, "/path/to/bump.png");
+    try expectEqualStrings(material.diffuse_map.?.path, "/path/to/diffuse.png");
+    try expectEqualStrings(material.specular_map.?.path, "/path/to/specular.png");
+}
+
+test "plateball (pbr)" {
+    const data = @embedFile("../examples/plateball.mtl");
+
+    var result = try parse(test_allocator, data);
+    defer result.deinit(test_allocator);
+
+    const material = result.materials.get("Material.001").?;
+    try expectEqualStrings(material.metallic_map.?.path, "metal_plate_rough_1k.jpg");
+    try expectEqualStrings(material.roughness_map.?.path, "metal_plate_metal_1k.jpg");
+    try expectEqualStrings(material.bump_map.?.path, "metal_plate_nor_gl_1k.jpg");
+    try expectEqualStrings(material.bump_map.?.opts, "-bm 1.000000");
 }
 
 test "windows line endings" {
