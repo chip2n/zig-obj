@@ -17,6 +17,12 @@ MTL files:
 - Bump map
 - Diffuse map
 - Specular map
+- Ambient map
+- Roughness map
+- Metallic map
+- Sheen map
+- Emissive map
+- Normal map
 - Ambient color
 - Diffuse color
 - Specular color
@@ -25,6 +31,13 @@ MTL files:
 - Optical density
 - Dissolve
 - Illumination
+- Roughness
+- Metallic
+- Sheen
+- Clearcoat thickness
+- Clearcoat roughness
+- Anisotropy
+- Anisotropy rotation
 
 If something is missing or not working properly, feel free to open an issue/pull
 request and I'll take a look.
