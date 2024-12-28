@@ -209,7 +209,7 @@ const Keyword = enum {
     normal_map,
 };
 
-const TextureMap = struct { path: []const u8, opts: []const u8 };
+pub const TextureMap = struct { path: []const u8, opts: []const u8 };
 
 pub fn parse(allocator: Allocator, data: []const u8) !MaterialData {
     var b = MaterialData.Builder{ .allocator = allocator };
