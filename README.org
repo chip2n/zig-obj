@@ -44,20 +44,10 @@ request and I'll take a look.
 
 ** Getting started
 
-Add module to your projects ~build.zig.zon~ file (replacing ~<COMMIT>~ with the
-commit you want to use and ~<HASH>~ with the associated hash):
+Add module to your projects ~build.zig.zon~ file:
 
-#+begin_src zig
-.{
-    .name = "my-project",
-    .version = "1.0.0",
-    .dependencies = .{
-        .obj = .{
-            .url = "git+https://github.com/chip2n/zig-obj.git#<COMMIT>",
-            .hash = "<HASH>",
-        },
-    },
-}
+#+begin_src bash
+zig fetch --save git+https://github.com/chip2n/zig-obj.git
 #+end_src
 
 Add the dependency to your executable in ~build.zig~:
