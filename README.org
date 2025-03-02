@@ -56,7 +56,7 @@ Add the dependency to your executable in ~build.zig~:
 pub fn build(b: *std.build.Builder) void {
     ...
     const obj_mod = b.dependency("obj", .{ .target = target, .optimize = optimize }).module("obj");
-    exe.addModule("obj", obj_mod);
+    exe_mod.addImport("obj", obj_mod);
 }
 #+end_src
 
