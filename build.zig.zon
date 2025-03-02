@@ -1,6 +1,7 @@
 .{
-    .name = "obj",
+    .name = .obj,
     .version = "2.0.1",
+    .fingerprint = 0x4666d46c8a9fc3bf,
     .dependencies = .{},
     .paths = .{
         "examples",
