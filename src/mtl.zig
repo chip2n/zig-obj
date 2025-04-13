@@ -109,8 +109,11 @@ pub const MaterialData = struct {
         fn diffuse_map(self: *Builder, map: TextureMap) !void {
             self.current_material.diffuse_map = try self.dupeTextureMap(map);
         }
-        fn specular_map(self: *Builder, map: TextureMap) !void {
-            self.current_material.specular_map = try self.dupeTextureMap(map);
+        fn specular_color_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.specular_color_map = try self.dupeTextureMap(map);
+        }
+        fn specular_highlight_map(self: *Builder, map: TextureMap) !void {
+            self.current_material.specular_highlight_map = try self.dupeTextureMap(map);
         }
         fn bump_map(self: *Builder, map: TextureMap) !void {
             self.current_material.bump_map = try self.dupeTextureMap(map);
@@ -154,7 +157,8 @@ pub const Material = struct {
 
     ambient_map: ?TextureMap = null,
     diffuse_map: ?TextureMap = null,
-    specular_map: ?TextureMap = null,
+    specular_color_map: ?TextureMap = null,
+    specular_highlight_map: ?TextureMap = null,
     bump_map: ?TextureMap = null,
     roughness_map: ?TextureMap = null,
     metallic_map: ?TextureMap = null,
@@ -165,7 +169,8 @@ pub const Material = struct {
     pub fn deinit(self: *Material, allocator: Allocator) void {
         if (self.bump_map) |m| freeTextureMap(allocator, m);
         if (self.diffuse_map) |m| freeTextureMap(allocator, m);
-        if (self.specular_map) |m| freeTextureMap(allocator, m);
+        if (self.specular_color_map) |m| freeTextureMap(allocator, m);
+        if (self.specular_highlight_map) |m| freeTextureMap(allocator, m);
         if (self.ambient_map) |m| freeTextureMap(allocator, m);
         if (self.roughness_map) |m| freeTextureMap(allocator, m);
         if (self.metallic_map) |m| freeTextureMap(allocator, m);
@@ -200,7 +205,8 @@ const Keyword = enum {
     anisotropy_rotation,
     ambient_map,
     diffuse_map,
-    specular_map,
+    specular_color_map,
+    specular_highlight_map,
     bump_map,
     roughness_map,
     metallic_map,
@@ -245,7 +251,8 @@ pub fn parseCustom(comptime T: type, b: *T.Builder, reader: anytype) !T {
             .anisotropy_rotation => try b.anisotropy_rotation(try parseF32(&iter)),
             .ambient_map => try b.ambient_map(try parseTextureMap(&iter)),
             .diffuse_map => try b.diffuse_map(try parseTextureMap(&iter)),
-            .specular_map => try b.specular_map(try parseTextureMap(&iter)),
+            .specular_color_map => try b.specular_color_map(try parseTextureMap(&iter)),
+            .specular_highlight_map => try b.specular_highlight_map(try parseTextureMap(&iter)),
             .bump_map => try b.bump_map(try parseTextureMap(&iter)),
             .roughness_map => try b.roughness_map(try parseTextureMap(&iter)),
             .metallic_map => try b.metallic_map(try parseTextureMap(&iter)),
@@ -327,8 +334,10 @@ fn parseKeyword(s: []const u8) !Keyword {
         return .ambient_map;
     } else if (std.mem.eql(u8, s, "map_Kd")) {
         return .diffuse_map;
+    } else if (std.mem.eql(u8, s, "map_Ks")) {
+        return .specular_color_map;
     } else if (std.mem.eql(u8, s, "map_Ns")) {
-        return .specular_map;
+        return .specular_highlight_map;
     } else if (std.mem.eql(u8, s, "map_Bump")) {
         return .bump_map;
     } else if (std.mem.eql(u8, s, "map_Pr")) {
@@ -369,7 +378,7 @@ test "single material" {
     try expectEqual(material.illumination.?, 2);
     try expectEqualStrings(material.bump_map.?.path, "/path/to/bump.png");
     try expectEqualStrings(material.diffuse_map.?.path, "/path/to/diffuse.png");
-    try expectEqualStrings(material.specular_map.?.path, "/path/to/specular.png");
+    try expectEqualStrings(material.specular_highlight_map.?.path, "/path/to/specular.png");
 }
 
 test "plateball (pbr)" {
