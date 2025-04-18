@@ -261,7 +261,7 @@ pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
 }
 
 pub fn parseCustom(comptime T: type, b: *T.Builder, reader: anytype) !T {
-    var buffer: [128]u8 = undefined;
+    var buffer: [1024]u8 = undefined;
     var lines = lineIterator(reader, &buffer);
     while (try lines.next()) |line| {
         var iter = tokenizeAny(u8, line, " ");
