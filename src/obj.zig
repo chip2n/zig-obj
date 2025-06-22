@@ -238,7 +238,7 @@ pub const Mesh = struct {
     }
 };
 
-const DefType = enum {
+pub const DefType = enum {
     comment,
     vertex,
     tex_coord,

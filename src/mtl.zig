@@ -185,7 +185,7 @@ pub const Material = struct {
     }
 };
 
-const Keyword = enum {
+pub const Keyword = enum {
     comment,
     new_material,
     ambient_color,
