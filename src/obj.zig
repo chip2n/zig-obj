@@ -525,7 +525,7 @@ test "multiple materials in one mesh" {
 }
 
 test "triangle obj exported from blender" {
-    const data = @embedFile("../examples/triangle.obj");
+    const data = @embedFile("examples/triangle.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -570,7 +570,7 @@ test "triangle obj exported from blender" {
 }
 
 test "triangle obj exported from blender (windows line endings)" {
-    const data = @embedFile("../examples/triangle_windows.obj");
+    const data = @embedFile("examples/triangle_windows.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -615,7 +615,7 @@ test "triangle obj exported from blender (windows line endings)" {
 }
 
 test "triangle obj exported from blender (two triangles)" {
-    const data = @embedFile("../examples/triangle_two.obj");
+    const data = @embedFile("examples/triangle_two.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -673,12 +673,12 @@ test "triangle obj exported from blender (two triangles)" {
 }
 
 test "triangle obj exported from blender (with error)" {
-    const data = @embedFile("../examples/triangle_error.obj");
+    const data = @embedFile("examples/triangle_error.obj");
     try expectError(error.UnknownDefType, parse(test_allocator, data));
 }
 
 test "cube obj exported from blender" {
-    const data = @embedFile("../examples/cube.obj");
+    const data = @embedFile("examples/cube.obj");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);

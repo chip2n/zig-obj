@@ -362,7 +362,7 @@ const expectEqualSlices = std.testing.expectEqualSlices;
 const expectEqualStrings = std.testing.expectEqualStrings;
 
 test "single material" {
-    const data = @embedFile("../examples/single.mtl");
+    const data = @embedFile("examples/single.mtl");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -382,7 +382,7 @@ test "single material" {
 }
 
 test "plateball (pbr)" {
-    const data = @embedFile("../examples/plateball.mtl");
+    const data = @embedFile("examples/plateball.mtl");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -395,7 +395,7 @@ test "plateball (pbr)" {
 }
 
 test "windows line endings" {
-    const data = @embedFile("../examples/triangle_windows.mtl");
+    const data = @embedFile("examples/triangle_windows.mtl");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
@@ -409,7 +409,7 @@ test "windows line endings" {
 }
 
 test "empty mtl" {
-    const data = @embedFile("../examples/empty.mtl");
+    const data = @embedFile("examples/empty.mtl");
 
     var result = try parse(test_allocator, data);
     defer result.deinit(test_allocator);
