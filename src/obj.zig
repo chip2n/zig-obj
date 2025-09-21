@@ -256,8 +256,8 @@ pub const DefType = enum {
 pub fn parse(allocator: Allocator, data: []const u8) !ObjData {
     var b = ObjData.Builder{ .allocator = allocator };
     errdefer b.onError();
-    var fbs = std.io.fixedBufferStream(data);
-    return try parseCustom(ObjData, &b, fbs.reader());
+    const fbs = std.Io.Reader.fixed(data);
+    return try parseCustom(ObjData, &b, fbs);
 }
 
 pub fn parseCustom(comptime T: type, b: *T.Builder, reader: anytype) !T {

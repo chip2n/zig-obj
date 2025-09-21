@@ -6,18 +6,16 @@ pub fn LineIterator(comptime Reader: type) type {
         reader: Reader,
 
         pub fn next(self: *@This()) !?[]const u8 {
-            var fbs = std.io.fixedBufferStream(self.buffer);
-            self.reader.streamUntilDelimiter(
-                fbs.writer(),
-                '\n',
-                fbs.buffer.len,
-            ) catch |err| switch (err) {
-                error.EndOfStream => if (fbs.getWritten().len == 0) return null,
+            var fbs = std.Io.Writer.fixed(self.buffer);
+            const written = self.reader.streamDelimiter(&fbs, '\n') catch |err| switch (err) {
+                error.EndOfStream => if (fbs.end == 0) return null else fbs.end,
                 else => |e| return e,
             };
-            var line = fbs.getWritten();
-            if (0 < line.len and line[line.len - 1] == '\r')
+            _ = self.reader.discardDelimiterInclusive('\n') catch {};
+            var line = fbs.buffer[0..written];
+            if (0 < line.len and line[line.len - 1] == '\r') {
                 line = line[0 .. line.len - 1];
+            }
             return line;
         }
     };
